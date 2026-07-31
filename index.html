@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>修繕管理系統</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('');
+  :root {
+    --slate-950: #020617;
+    --blue-accent: #3b82f6;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .tab-btn { transition: all 0.2s; }
+  .tab-btn.active { background: #3b82f6; color: #fff; }
+  .tab-btn:not(.active):hover { background: #1e293b; }
+  .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center; }
+  .modal-bg.open { display:flex; }
+  .toast { position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999; padding:0.75rem 1.25rem; border-radius:0.5rem; font-size:0.9rem; font-weight:600; opacity:0; transform:translateY(1rem); transition:all 0.3s; pointer-events:none; }
+  .toast.show { opacity:1; transform:translateY(0); }
+  .toast.success { background:#16a34a; color:#fff; }
+  .toast.error { background:#dc2626; color:#fff; }
+  input, select, textarea { background:#1e293b; border:1px solid #334155; color:#e2e8f0; border-radius:0.375rem; padding:0.5rem 0.75rem; width:100%; outline:none; }
+  input:focus, select:focus, textarea:focus { border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,0.25); }
+  input[readonly] { opacity:0.7; cursor:not-allowed; }
+  select option { background:#1e293b; }
+  .tbl th { background:#0f172a; color:#94a3b8; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; padding:0.6rem 0.75rem; text-align:left; }
+  .tbl td { padding:0.6rem 0.75rem; border-bottom:1px solid #1e293b; font-size:0.85rem; color:#cbd5e1; }
+  .tbl tr:hover td { background:#1e293b44; }
+  .badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:9999px; font-size:0.7rem; font-weight:700; }
+  .badge-green { background:#14532d; color:#86efac; }
+  .badge-yellow { background:#713f12; color:#fde68a; }
+  .badge-red { background:#7f1d1d; color:#fca5a5; }
+  .badge-blue { background:#1e3a5f; color:#93c5fd; }
+  .badge-gray { background:#1e293b; color:#94a3b8; }
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:#0f172a; }
+  ::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }
+  .card { background:#0f172a; border:1px solid #1e293b; border-radius:0.75rem; padding:1.25rem; }
+  .section-title { font-size:1.1rem; font-weight:700; color:#e2e8f0; margin-bottom:1rem; border-left:3px solid #3b82f6; padding-left:0.6rem; }
+  .btn-primary { background:#3b82f6; color:#fff; border:none; border-radius:0.375rem; padding:0.5rem 1rem; font-weight:600; cursor:pointer; transition:background 0.2s; font-size:0.85rem; }
+  .btn-primary:hover { background:#2563eb; }
+  .btn-danger { background:#dc2626; color:#fff; border:none; border-radius:0.375rem; padding:0.4rem 0.75rem; font-weight:600; cursor:pointer; transition:background 0.2s; font-size:0.8rem; }
+  .btn-danger:hover { background:#b91c1c; }
+  .btn-sm { background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:0.375rem; padding:0.3rem 0.65rem; font-size:0.78rem; cursor:pointer; transition:all 0.2s; }
+  .btn-sm:hover { background:#334155; }
+  .btn-outline { background:transparent; color:#3b82f6; border:1px solid #3b82f6; border-radius:0.375rem; padding:0.45rem 0.9rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.85rem; }
+  .btn-outline:hover { background:#3b82f6; color:#fff; }
+  .form-label { display:block; font-size:0.78rem; color:#94a3b8; margin-bottom:0.3rem; font-weight:600; }
+  .stat-card { background:#0f172a; border:1px solid #1e293b; border-radius:0.75rem; padding:1rem 1.25rem; }
+  .stat-val { font-size:1.8rem; font-weight:800; color:#e2e8f0; }
+  .stat-label { font-size:0.78rem; color:#64748b; margin-top:0.25rem; }
+  .confirm-dialog { position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; display:none; align-items:center; justify-content:center; }
+  .confirm-dialog.open { display:flex; }
+  .mono { font-family: 'Courier New', monospace; }
+  .online-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#22c55e; animation:pulse2 1.5s infinite; }
+  @keyframes pulse2 { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  .fingerprint-display { font-family:'Courier New',monospace; font-size:1rem; letter-spacing:0.15em; color:#60a5fa; background:#0f172a; border:1px solid #1e3a5f; border-radius:0.5rem; padding:0.75rem 1rem; word-break:break-all; }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+  .hidden-row { display:none !important; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- Confirm Dialog -->
+<div id="confirmDialog" class="confirm-dialog">
+  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 max-w-sm w-full mx-4">
+    <div class="text-lg font-bold text-white mb-2" id="confirmTitle">確認刪除</div>
+    <div class="text-slate-300 text-sm mb-5" id="confirmMsg">此操作無法復原,確定繼續?</div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn-sm" onclick="closeConfirm()">取消</button>
+      <button class="btn-danger" id="confirmOkBtn">確定刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="bg-slate-900 border-b border-slate-700 sticky top-0 z-50">
+  <div class="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+      </svg>
+      <span class="text-lg font-bold text-white">修繕管理系統</span>
+      <span class="text-xs text-slate-500 hidden sm:block">Repair Management Database v1.0</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="online-dot"></span>
+      <span class="text-xs text-slate-400" id="headerVisitorId">-</span>
+      <button class="btn-sm" onclick="exportData()">備份 JSON</button>
+      <label class="btn-sm cursor-pointer">匯入 JSON<input type="file" accept=".json" class="hidden" onchange="importData(event)"></label>
+      <button class="btn-sm" onclick="exportCSV()">匯出 CSV</button>
+    </div>
+  </div>
+  <!-- Tabs -->
+  <div class="max-w-screen-xl mx-auto px-4 pb-0 flex gap-1 overflow-x-auto">
+    <button class="tab-btn px-4 py-2 rounded-t-lg text-sm font-600 text-slate-300 active" onclick="switchTab('dashboard')">儀表板</button>
+    <button class="tab-btn px-4 py-2 rounded-t-lg text-sm font-600 text-slate-300" onclick="switchTab('rooms')">房間 &amp; 項目管理</button>
+    <button class="tab-btn px-4 py-2 rounded-t-lg text-sm font-600 text-slate-300" onclick="switchTab('parts')">零件目錄</button>
+    <button class="tab-btn px-4 py-2 rounded-t-lg text-sm font-600 text-slate-300" onclick="switchTab('records')">更換記錄</button>
+    <button class="tab-btn px-4 py-2 rounded-t-lg text-sm font-600 text-slate-300" onclick="switchTab('visitor')">使用者</button>
+  </div>
+</header>
+
+<main class="max-w-screen-xl mx-auto px-4 py-6">
+
+<!-- ========== DASHBOARD ========== -->
+<div id="tab-dashboard" class="tab-content active">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="dashStats"></div>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+    <div class="card lg:col-span-2">
+      <div class="section-title">最近 5 次更換記錄</div>
+      <div id="dashRecent"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">最常更換零件 Top 5</div>
+      <div id="dashTop5"></div>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="card">
+      <div class="section-title">庫存警戒零件 (低於 10)</div>
+      <div id="dashLowStock"></div>
+    </div>
+    <div class="card" id="dashVisitorCard">
+      <div class="section-title">目前使用者</div>
+      <div id="dashVisitorInfo"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== ROOMS & ITEMS ========== -->
+<div id="tab-rooms" class="tab-content">
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <input type="text" id="roomSearch" placeholder="搜尋房號 / 名稱..." class="max-w-xs" oninput="renderRooms()">
+    <select id="floorFilter" onchange="renderRooms()" class="max-w-xs">
+      <option value="">全部樓層</option>
+      <option value="2">2 樓</option>
+      <option value="3">3 樓</option>
+      <option value="4">4 樓</option>
+    </select>
+    <select id="itemTypeFilter" onchange="renderRooms()" class="max-w-xs">
+      <option value="">全部項目類型</option>
+    </select>
+    <select id="itemStatusFilter" onchange="renderRooms()" class="max-w-xs">
+      <option value="">全部項目狀態</option>
+      <option value="正常">正常</option>
+      <option value="維修中">維修中</option>
+      <option value="待更換">待更換</option>
+      <option value="停用">停用</option>
+    </select>
+    <button class="btn-primary ml-auto" onclick="openRoomModal()">+ 新增房間</button>
+  </div>
+  <div id="roomsList"></div>
+</div>
+
+<!-- ========== PARTS ========== -->
+<div id="tab-parts" class="tab-content">
+  <div class="flex items-center gap-3 mb-4">
+    <input type="text" id="partSearch" placeholder="搜尋零件名稱 / 類別..." class="max-w-xs" oninput="renderParts()">
+    <button class="btn-primary ml-auto" onclick="openPartModal()">+ 新增零件</button>
+  </div>
+  <div class="card">
+    <table class="tbl w-full">
+      <thead><tr>
+        <th>名稱</th><th>類別</th><th>規格</th><th>單位</th><th>庫存</th><th>單位成本</th><th>備註</th><th>操作</th>
+      </tr></thead>
+      <tbody id="partsTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== RECORDS ========== -->
+<div id="tab-records" class="tab-content">
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <select id="recordRoomFilter" onchange="renderRecords()" class="max-w-xs">
+      <option value="">全部房間</option>
+    </select>
+    <select id="recordPartFilter" onchange="renderRecords()" class="max-w-xs">
+      <option value="">全部零件</option>
+    </select>
+    <button class="btn-primary ml-auto" onclick="openRecordModal()">+ 新增更換記錄</button>
+  </div>
+  <div class="card">
+    <table class="tbl w-full">
+      <thead><tr>
+        <th>日期</th><th>房間</th><th>項目</th><th>零件</th><th>數量</th><th>技術員</th><th>成本</th><th>原因</th><th>備註</th><th>操作</th>
+      </tr></thead>
+      <tbody id="recordsTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== VISITOR ========== -->
+<div id="tab-visitor" class="tab-content">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+    <div class="card">
+      <div class="section-title">裝置指紋</div>
+      <div class="mb-3">
+        <div class="form-label">完整 ID (16碼+)</div>
+        <div class="fingerprint-display" id="fpFull">-</div>
+      </div>
+      <div class="mb-3">
+        <div class="form-label">短碼 (8碼)</div>
+        <div class="fingerprint-display text-sm" id="fpShort">-</div>
+      </div>
+      <div class="flex gap-2 mt-3">
+        <button class="btn-outline" onclick="exportVisitorJSON()">匯出訪客 JSON</button>
+        <button class="btn-danger" onclick="clearVisitorData()">清除訪客紀錄</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">本機裝置資訊</div>
+      <div id="visitorDetails" class="grid grid-cols-2 gap-y-2 text-sm"></div>
+    </div>
+  </div>
+  <div class="card mb-4">
+    <div class="section-title">Session 歷史 (最多 50 筆)</div>
+    <div class="overflow-x-auto">
+      <table class="tbl w-full">
+        <thead><tr><th>時間</th><th>URL</th><th>User-Agent (前80字)</th><th>上線狀態</th></tr></thead>
+        <tbody id="sessionLogBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <div class="flex items-center justify-between mb-3">
+      <div class="section-title mb-0">操作日誌 (最多 200 筆)</div>
+      <div class="flex gap-2">
+        <button class="btn-sm" onclick="exportActionLog()">匯出日誌 JSON</button>
+        <button class="btn-danger" onclick="clearActionLog()">清除日誌</button>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="tbl w-full">
+        <thead><tr><th>時間</th><th>動作</th><th>詳細</th></tr></thead>
+        <tbody id="actionLogBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Room Modal -->
+<div id="roomModal" class="modal-bg">
+  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
+    <div class="text-lg font-bold text-white mb-4" id="roomModalTitle">新增房間</div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="form-label">房號 *</label><input id="rm_number" type="text" placeholder="201"></div>
+      <div><label class="form-label">名稱</label><input id="rm_name" type="text" placeholder="標準房"></div>
+      <div><label class="form-label">樓層 *</label>
+        <select id="rm_floor"><option value="2">2 樓</option><option value="3">3 樓</option><option value="4">4 樓</option></select>
+      </div>
+      <div><label class="form-label">區域</label><input id="rm_area" type="text" placeholder="忠義訓練中心"></div>
+      <div class="col-span-2"><label class="form-label">備註</label><textarea id="rm_note" rows="2"></textarea></div>
+    </div>
+    <div class="flex gap-3 mt-4 justify-end">
+      <button class="btn-sm" onclick="closeModal('roomModal')">取消</button>
+      <button class="btn-primary" onclick="saveRoom()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Item Modal -->
+<div id="itemModal" class="modal-bg">
+  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
+    <div class="text-lg font-bold text-white mb-4" id="itemModalTitle">新增項目</div>
+    <input type="hidden" id="it_roomId">
+    <div class="grid grid-cols-2 gap-3">
+      <div class="col-span-2"><label class="form-label">項目類型 *</label>
+        <select id="it_type" onchange="onItemTypeChange()"></select>
+      </div>
+      <div class="col-span-2" id="itSubTypeRow">
+        <label class="form-label">子類型 (室內機 / 室外機)</label>
+        <select id="it_subType"><option>室內機</option><option>室外機</option></select>
+      </div>
+      <div><label class="form-label">廠牌</label><input id="it_brand" type="text" placeholder="廠牌/供應商(選填)"></div>
+      <div><label class="form-label">型號 / 名稱 *</label><input id="it_model" type="text" placeholder="項目型號或名稱"></div>
+      <div><label class="form-label" id="it_specLabel">規格</label><input id="it_spec" type="text" placeholder="選填"></div>
+      <div><label class="form-label">安裝日期</label><input id="it_installDate" type="date"></div>
+      <div><label class="form-label">狀態</label>
+        <select id="it_status"><option>正常</option><option>維修中</option><option>待更換</option><option>停用</option></select>
+      </div>
+      <div><label class="form-label">最後保養/更換日期</label><input id="it_lastService" type="date"></div>
+      <div class="col-span-2"><label class="form-label">備註</label><textarea id="it_note" rows="2"></textarea></div>
+    </div>
+    <div class="flex gap-3 mt-4 justify-end">
+      <button class="btn-sm" onclick="closeModal('itemModal')">取消</button>
+      <button class="btn-primary" onclick="saveItem()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Part Modal -->
+<div id="partModal" class="modal-bg">
+  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
+    <div class="text-lg font-bold text-white mb-4" id="partModalTitle">新增零件</div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="form-label">名稱 *</label><input id="pt_name" type="text"></div>
+      <div><label class="form-label">類別</label><input id="pt_category" type="text" placeholder="衛浴類"></div>
+      <div><label class="form-label">規格</label><input id="pt_spec" type="text"></div>
+      <div><label class="form-label">單位</label><input id="pt_unit" type="text" placeholder="個"></div>
+      <div><label class="form-label">庫存數量</label><input id="pt_stock" type="number" min="0" value="0"></div>
+      <div><label class="form-label">單位成本 (NT$)</label><input id="pt_cost" type="number" min="0" value="0"></div>
+      <div class="col-span-2"><label class="form-label">備註</label><textarea id="pt_note" rows="2"></textarea></div>
+    </div>
+    <div class="flex gap-3 mt-4 justify-end">
+      <button class="btn-sm" onclick="closeModal('partModal')">取消</button>
+      <button class="btn-primary" onclick="savePart()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Record Modal -->
+<div id="recordModal" class="modal-bg">
+  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
+    <div class="text-lg font-bold text-white mb-4" id="recordModalTitle">新增更換記錄</div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="form-label">房間 *</label>
+        <select id="rec_roomId" onchange="updateItemOptions()"><option value="">-- 選擇房間 --</option></select>
+      </div>
+      <div><label class="form-label">項目 *</label>
+        <select id="rec_itemId"><option value="">-- 選擇項目 --</option></select>
+      </div>
+      <div><label class="form-label">零件 *</label>
+        <select id="rec_partId"><option value="">-- 選擇零件 --</option></select>
+      </div>
+      <div><label class="form-label">數量 *</label><input id="rec_qty" type="number" min="1" value="1"></div>
+      <div><label class="form-label">更換日期 *</label><input id="rec_date" type="date"></div>
+      <div><label class="form-label">技術員</label><input id="rec_tech" type="text" placeholder="張師傅"></div>
+      <div><label class="form-label">成本 (NT$)</label><input id="rec_cost" type="number" min="0" value="0"></div>
+      <div><label class="form-label">更換原因</label>
+        <select id="rec_reason"><option>故障</option><option>定期保養</option><option>預防性</option><option>升級</option></select>
+      </div>
+      <div class="col-span-2"><label class="form-label">備註</label><textarea id="rec_note" rows="2"></textarea></div>
+    </div>
+    <div class="flex gap-3 mt-4 justify-end">
+      <button class="btn-sm" onclick="closeModal('recordModal')">取消</button>
+      <button class="btn-primary" onclick="saveRecord()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  CONSTANTS
+// ============================================================
+const ITEM_TYPES = ['冷氣機組','桌燈','衣櫃滑軌','遙控器','T8燈管','按壓式落水頭','馬桶蓋','馬桶止水皮','水箱進水器','蓮蓬頭','其他'];
+const AC_BRAND = '日立'; // 系統內所有冷氣品牌統一為日立
+const FLOORS = ['2','3','4'];
+const DEFAULT_AREA = '忠義訓練中心';
+
+// ============================================================
+//  UTILS
+// ============================================================
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+const fmt = d => d ? new Date(d).toLocaleDateString('zh-Hant', {year:'numeric',month:'2-digit',day:'2-digit'}) : '-';
+const fmtDt = d => d ? new Date(d).toLocaleString('zh-Hant') : '-';
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+let toastTimer;
+function toast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+let confirmCb = null;
+function confirm2(title, msg, cb) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  confirmCb = cb;
+  document.getElementById('confirmDialog').classList.add('open');
+  document.getElementById('confirmOkBtn').textContent = title.includes('清除') ? '確定清除' : '確定刪除';
+}
+function closeConfirm() { document.getElementById('confirmDialog').classList.remove('open'); confirmCb = null; }
+document.getElementById('confirmOkBtn').onclick = () => { closeConfirm(); if(confirmCb) confirmCb(); };
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if(name==='dashboard') renderDashboard();
+  if(name==='rooms') renderRooms();
+  if(name==='parts') renderParts();
+  if(name==='records') renderRecords();
+  if(name==='visitor') renderVisitor();
+}
+
+// ============================================================
+//  FINGERPRINT / VISITOR
+// ============================================================
+function djb2(str) {
+  let h = 5381;
+  for(let i=0;i<str.length;i++) h = ((h<<5)+h)+str.charCodeAt(i);
+  return (h >>> 0).toString(16).padStart(8,'0');
+}
+
+function buildFingerprint() {
+  const nav = window.navigator;
+  const scr = window.screen;
+  const parts = [
+    scr.width+'x'+scr.height,
+    scr.colorDepth,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    new Date().getTimezoneOffset(),
+    nav.language,
+    nav.platform,
+    nav.userAgent,
+    nav.hardwareConcurrency||0,
+    nav.deviceMemory||0,
+    ('ontouchstart' in window||nav.maxTouchPoints>0)?1:0,
+    nav.doNotTrack||'null'
+  ];
+  const raw = parts.join('|');
+  // 4 rounds to make 32 char id
+  const a = djb2(raw);
+  const b = djb2(raw.split('').reverse().join(''));
+  const c = djb2(a+b);
+  const d = djb2(b+a);
+  return (a+b+c+d); // 32 hex chars
+}
+
+function detectBrowser(ua) {
+  if(/Edg\//.test(ua)) return 'Edge';
+  if(/OPR\/|Opera/.test(ua)) return 'Opera';
+  if(/Chrome\//.test(ua)) return 'Chrome';
+  if(/Firefox\//.test(ua)) return 'Firefox';
+  if(/Safari\//.test(ua)) return 'Safari';
+  return '其他';
+}
+
+function detectOS(ua) {
+  if(/Windows NT 10\.0/.test(ua)) {
+    // Rough win11 check
+    return /Windows NT 10\.0; Win64/.test(ua) ? 'Windows 10/11' : 'Windows 10';
+  }
+  if(/Windows/.test(ua)) return 'Windows';
+  if(/Android/.test(ua)) return 'Android';
+  if(/iPhone|iPad/.test(ua)) return 'iOS';
+  if(/Mac OS X/.test(ua)) return 'macOS';
+  if(/Linux/.test(ua)) return 'Linux';
+  return '其他';
+}
+
+function getDeviceInfo() {
+  const nav = window.navigator;
+  const scr = window.screen;
+  const ua = nav.userAgent;
+  return {
+    browser: detectBrowser(ua),
+    os: detectOS(ua),
+    screen: scr.width+'x'+scr.height,
+    colorDepth: scr.colorDepth+'bit',
+    platform: nav.platform||'-',
+    language: nav.language||'-',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    tzOffset: new Date().getTimezoneOffset()+'min',
+    cpuCores: nav.hardwareConcurrency||'-',
+    ramGB: nav.deviceMemory ? nav.deviceMemory+'GB' : '-',
+    touch: ('ontouchstart' in window||nav.maxTouchPoints>0)?'支援':'不支援',
+    dnt: nav.doNotTrack||'未設定',
+    referrer: document.referrer||'直接進入',
+    online: navigator.onLine?'上線':'離線',
+    userAgent: ua
+  };
+}
+
+const VISITOR_KEY = 'repair_mgmt_visitor_v1';
+
+function loadVisitor() {
+  try { return JSON.parse(localStorage.getItem(VISITOR_KEY)||'null'); } catch(e) { return null; }
+}
+function saveVisitorStore(v) {
+  localStorage.setItem(VISITOR_KEY, JSON.stringify(v));
+}
+
+function initVisitor() {
+  const fp = buildFingerprint();
+  const shortId = fp.slice(0,8);
+  const info = getDeviceInfo();
+  let v = loadVisitor();
+  const now = new Date().toISOString();
+
+  if(!v || v.visitorId !== fp) {
+    // new visitor
+    v = {
+      visitorId: fp,
+      shortId,
+      firstVisit: now,
+      lastVisit: now,
+      visitCount: 1,
+      deviceInfo: info,
+      sessionLog: [],
+      actionLog: []
+    };
+  } else {
+    v.lastVisit = now;
+    v.visitCount = (v.visitCount||0)+1;
+    v.deviceInfo = info; // refresh
+  }
+
+  // push session
+  const sess = {
+    at: now,
+    url: window.location.href,
+    ua: info.userAgent.slice(0,80),
+    online: info.online
+  };
+  if(!v.sessionLog) v.sessionLog = [];
+  v.sessionLog.unshift(sess);
+  if(v.sessionLog.length>50) v.sessionLog = v.sessionLog.slice(0,50);
+
+  if(!v.actionLog) v.actionLog = [];
+
+  saveVisitorStore(v);
+  return v;
+}
+
+function logAction(action, detail) {
+  let v = loadVisitor();
+  if(!v) return;
+  if(!v.actionLog) v.actionLog = [];
+  v.actionLog.unshift({ at: new Date().toISOString(), action, detail });
+  if(v.actionLog.length>200) v.actionLog = v.actionLog.slice(0,200);
+  saveVisitorStore(v);
+}
+
+// ============================================================
+//  DATA STORE
+// ============================================================
+const DB_KEY = 'repair_mgmt_db';
+
+function loadDB() {
+  try { return JSON.parse(localStorage.getItem(DB_KEY)||'null'); } catch(e) { return null; }
+}
+function saveDB() {
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+}
+
+let db = { rooms:[], items:[], parts:[], records:[] };
+
+// ============================================================
+//  SAMPLE DATA
+// ============================================================
+// 依需求建立 2F/3F/4F 房號: 200(功能房)/300/400、201-214(標準房)、216(二間室) 依樓層前綴
+function buildRoomsForFloor(floorNum) {
+  const rooms = [];
+  const base = floorNum*100;
+  rooms.push({ id:'r'+base, number:String(base), name:'功能房', floor:String(floorNum), area:DEFAULT_AREA, note:'' });
+  for(let n=1;n<=14;n++){
+    const num = base+n;
+    rooms.push({ id:'r'+num, number:String(num), name:'標準房', floor:String(floorNum), area:DEFAULT_AREA, note:'' });
+  }
+  rooms.push({ id:'r'+(base+16), number:String(base+16), name:'二間室', floor:String(floorNum), area:DEFAULT_AREA, note:'' });
+  return rooms;
+}
+
+function buildItemsForRoom(room, idx) {
+  const items = [];
+  const btuOptions = [9000,12000,18000,24000];
+  const statuses = ['正常','正常','正常','維修中','待更換','停用'];
+  const isDouble = room.name === '二間室';
+  const splitCount = isDouble ? 2 : 1;
+
+  for(let s=0; s<splitCount; s++){
+    const btu = btuOptions[(idx+s)%btuOptions.length];
+    const model = 'RAS-'+(btu/1000)+'NK'+(s?('-'+(s+1)):'');
+    const status = statuses[(idx+s)%statuses.length];
+    const installDate = `20${20+((idx+s)%5)}-0${((idx+s)%9)+1}-${String(((idx+s)%28)+1).padStart(2,'0')}`;
+    const lastService = `2025-0${((idx+s)%9)+1}-${String(((idx+s)%28)+1).padStart(2,'0')}`;
+    ['室內機','室外機'].forEach(subType=>{
+      items.push({
+        id:'item'+uid(), roomId: room.id, itemType:'冷氣機組', subType,
+        brand: AC_BRAND, model, spec: String(btu),
+        installDate, status, lastService, note:''
+      });
+    });
+  }
+
+  // 常見附屬項目 (示範資料)
+  items.push({ id:'item'+uid(), roomId: room.id, itemType:'遙控器', subType:'', brand:'', model:'冷氣遙控器', spec:'', installDate:'', status:'正常', lastService:'', note:'' });
+  items.push({ id:'item'+uid(), roomId: room.id, itemType:'桌燈', subType:'', brand:'', model:'LED 夾式桌燈', spec:'', installDate:'', status:'正常', lastService:'', note:'' });
+  if(idx % 3 === 0){
+    items.push({ id:'item'+uid(), roomId: room.id, itemType:'蓮蓬頭', subType:'', brand:'', model:'手持式蓮蓬頭', spec:'', installDate:'', status:'正常', lastService:'', note:'' });
+  }
+  if(idx % 4 === 0){
+    items.push({ id:'item'+uid(), roomId: room.id, itemType:'衣櫃滑軌', subType:'', brand:'', model:'標準軌道組', spec:'', installDate:'', status:'正常', lastService:'', note:'' });
+  }
+  return items;
+}
+
+function initSampleData() {
+  // Rooms: 2F/3F/4F, 每層 16 間
+  const rooms = FLOORS.flatMap(f => buildRoomsForFloor(Number(f)));
+
+  // Items
+  const items = [];
+  rooms.forEach((room, idx) => {
+    items.push(...buildItemsForRoom(room, idx));
+  });
+
+  // Parts
+  const parts = [
+    {id:'pt1',name:'空氣濾網',category:'過濾類',spec:'標準尺寸',unit:'片',stock:45,cost:120,note:''},
+    {id:'pt2',name:'壓縮機',category:'壓縮類',spec:'1HP/220V',unit:'個',stock:8,cost:12000,note:''},
+    {id:'pt3',name:'啟動電容器',category:'電氣類',spec:'40+5uF/450V',unit:'個',stock:25,cost:350,note:''},
+    {id:'pt4',name:'風扇馬達',category:'馬達類',spec:'AC220V 30W',unit:'個',stock:12,cost:2200,note:''},
+    {id:'pt5',name:'PCB 控制板',category:'電路類',spec:'通用型',unit:'片',stock:6,cost:3500,note:''},
+    {id:'pt6',name:'遙控器',category:'附件類',spec:'通用型',unit:'個',stock:30,cost:280,note:''},
+    {id:'pt7',name:'排水管',category:'管路類',spec:'PVC 1" 3M',unit:'條',stock:20,cost:150,note:''},
+    {id:'pt8',name:'銅管',category:'管路類',spec:'1/4" 3M',unit:'條',stock:15,cost:480,note:''},
+    {id:'pt9',name:'溫度感測器',category:'感測類',spec:'NTC 10K',unit:'個',stock:18,cost:220,note:''},
+    {id:'pt10',name:'擺風馬達',category:'馬達類',spec:'12V步進馬達',unit:'個',stock:9,cost:680,note:''},
+    {id:'pt11',name:'冷凝器',category:'熱交換類',spec:'標準',unit:'組',stock:4,cost:8500,note:''},
+    {id:'pt12',name:'蒸發器',category:'熱交換類',spec:'標準',unit:'組',stock:3,cost:7200,note:''},
+    {id:'pt13',name:'電磁開關',category:'電氣類',spec:'AC220V 25A',unit:'個',stock:22,cost:420,note:''},
+    {id:'pt14',name:'變壓器',category:'電氣類',spec:'AC220V/12V',unit:'個',stock:11,cost:580,note:''},
+    {id:'pt15',name:'排水幫浦',category:'幫浦類',spec:'DC12V',unit:'個',stock:7,cost:950,note:''},
+    {id:'pt16',name:'T8燈管',category:'照明類',spec:'T8 20W',unit:'支',stock:40,cost:90,note:''},
+    {id:'pt17',name:'按壓式落水頭',category:'衛浴類',spec:'不鏽鋼',unit:'個',stock:20,cost:150,note:''},
+    {id:'pt18',name:'馬桶蓋',category:'衛浴類',spec:'標準型',unit:'個',stock:15,cost:450,note:''},
+    {id:'pt19',name:'馬桶止水皮',category:'衛浴類',spec:'通用',unit:'個',stock:30,cost:60,note:''},
+    {id:'pt20',name:'水箱進水器',category:'衛浴類',spec:'標準',unit:'個',stock:18,cost:280,note:''},
+    {id:'pt21',name:'蓮蓬頭',category:'衛浴類',spec:'手持式',unit:'組',stock:22,cost:380,note:''},
+    {id:'pt22',name:'衣櫃滑軌',category:'五金類',spec:'標準軌道',unit:'組',stock:16,cost:220,note:''},
+    {id:'pt23',name:'桌燈',category:'照明類',spec:'LED夾式',unit:'個',stock:20,cost:350,note:''}
+  ];
+
+  // Records (示範資料)
+  const records = [];
+  const techs = ['張師傅','李技師','王師傅','陳師傅'];
+  const reasons = ['故障','定期保養','預防性','升級'];
+  const sampleCount = Math.min(30, items.length);
+  for(let i=0;i<sampleCount;i++){
+    const item = items[(i*3) % items.length];
+    const part = parts[i % parts.length];
+    const qty = (i%3)+1;
+    records.push({
+      id:'rec'+uid(),
+      itemId: item.id,
+      roomId: item.roomId,
+      partId: part.id,
+      qty,
+      date: `2024-${String((i%11)+1).padStart(2,'0')}-${String((i%28)+1).padStart(2,'0')}`,
+      tech: techs[i%4],
+      cost: qty * part.cost,
+      reason: reasons[i%4],
+      note: i%5===0?'已更換完畢':''
+    });
+    part.stock = Math.max(0, part.stock - qty);
+  }
+
+  db = { rooms, items, parts, records };
+  saveDB();
+  logAction('系統初始化','載入範例資料');
+}
+
+// ============================================================
+//  RENDER DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const totalCost = db.records.reduce((s,r)=>s+(r.cost||0),0);
+  const monthRecords = db.records.filter(r=>r.date&&r.date.startsWith(thisMonth));
+  const partStockValue = db.parts.reduce((s,p)=>s+((p.stock||0)*(p.cost||0)),0);
+  const lowStock = db.parts.filter(p=>p.stock<10);
+
+  const statsEl = document.getElementById('dashStats');
+  const stats = [
+    {val:db.rooms.length, label:'總房間數', icon:'#3b82f6'},
+    {val:db.items.length, label:'總項目數', icon:'#06b6d4'},
+    {val:db.records.length, label:'總更換次數', icon:'#8b5cf6'},
+    {val:monthRecords.length, label:'本月更換次數', icon:'#f59e0b'},
+    {val:'NT$'+totalCost.toLocaleString(), label:'累計維修成本', icon:'#ef4444'},
+    {val:'NT$'+partStockValue.toLocaleString(), label:'零件庫存總值', icon:'#10b981'},
+    {val:db.parts.length, label:'零件種類', icon:'#64748b'},
+    {val:lowStock.length, label:'庫存警戒零件', icon:'#f97316'}
+  ];
+  statsEl.innerHTML = stats.map(s=>`
+    <div class="stat-card">
+      <div class="stat-val" style="color:${s.icon}">${s.val}</div>
+      <div class="stat-label">${s.label}</div>
+    </div>
+  `).join('');
+
+  // Recent 5
+  const recent = [...db.records].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  document.getElementById('dashRecent').innerHTML = recent.length ? `
+    <table class="tbl w-full">
+      <thead><tr><th>日期</th><th>房間</th><th>零件</th><th>技術員</th><th>成本</th></tr></thead>
+      <tbody>${recent.map(r=>{
+        const room = db.rooms.find(x=>x.id===r.roomId);
+        const part = db.parts.find(x=>x.id===r.partId);
+        return `<tr><td>${r.date}</td><td>${room?room.number+' '+room.name:'-'}</td><td>${part?part.name:'-'}</td><td>${r.tech||'-'}</td><td>NT$${(r.cost||0).toLocaleString()}</td></tr>`;
+      }).join('')}</tbody>
+    </table>` : '<div class="text-slate-500 text-sm">尚無記錄</div>';
+
+  // Top 5 parts
+  const partCount = {};
+  db.records.forEach(r=>{ partCount[r.partId]=(partCount[r.partId]||0)+r.qty; });
+  const top5 = Object.entries(partCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxQ = top5[0]?top5[0][1]:1;
+  document.getElementById('dashTop5').innerHTML = top5.length ? top5.map(([pid,q])=>{
+    const p = db.parts.find(x=>x.id===pid);
+    const pct = Math.round(q/maxQ*100);
+    return `<div class="mb-3">
+      <div class="flex justify-between text-sm mb-1"><span class="text-slate-200">${p?p.name:'-'}</span><span class="text-blue-400 font-bold">${q}</span></div>
+      <div class="h-2 bg-slate-700 rounded-full"><div class="h-2 bg-blue-500 rounded-full" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('') : '<div class="text-slate-500 text-sm">尚無數據</div>';
+
+  // Low stock
+  document.getElementById('dashLowStock').innerHTML = lowStock.length ? `
+    <table class="tbl w-full">
+      <thead><tr><th>零件名稱</th><th>類別</th><th>庫存</th></tr></thead>
+      <tbody>${lowStock.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.category)}</td><td><span class="badge ${p.stock===0?'badge-red':'badge-yellow'}">${p.stock} ${p.unit||'個'}</span></td></tr>`).join('')}</tbody>
+    </table>` : '<div class="text-green-400 text-sm">所有零件庫存充足</div>';
+
+  // Visitor card
+  const v = loadVisitor();
+  if(v){
+    document.getElementById('dashVisitorInfo').innerHTML = `
+      <div class="grid grid-cols-2 gap-y-3 text-sm">
+        <div class="text-slate-400">裝置短碼</div><div class="mono text-blue-400 font-bold">${v.shortId}</div>
+        <div class="text-slate-400">瀏覽器</div><div class="text-slate-200">${v.deviceInfo.browser}</div>
+        <div class="text-slate-400">作業系統</div><div class="text-slate-200">${v.deviceInfo.os}</div>
+        <div class="text-slate-400">造訪次數</div><div class="text-slate-200 font-bold">${v.visitCount} 次</div>
+        <div class="text-slate-400">首次造訪</div><div class="text-slate-200">${fmtDt(v.firstVisit)}</div>
+        <div class="text-slate-400">最後造訪</div><div class="text-slate-200">${fmtDt(v.lastVisit)}</div>
+      </div>`;
+  }
+}
+
+// ============================================================
+//  RENDER ROOMS & ITEMS
+// ============================================================
+let expandedRooms = new Set();
+
+function populateItemTypeFilter() {
+  const sel = document.getElementById('itemTypeFilter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部項目類型</option>' + ITEM_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('');
+  sel.value = cur;
+}
+
+function renderRooms() {
+  populateItemTypeFilter();
+  const search = (document.getElementById('roomSearch').value||'').toLowerCase();
+  const floorF = document.getElementById('floorFilter').value;
+  const itemTypeF = document.getElementById('itemTypeFilter').value;
+  const itemStatusF = document.getElementById('itemStatusFilter').value;
+
+  let rooms = db.rooms.filter(r=>{
+    if(search && !(r.number.toLowerCase().includes(search)||((r.name||'').toLowerCase().includes(search)))) return false;
+    if(floorF && r.floor !== floorF) return false;
+    return true;
+  });
+
+  if(itemTypeF || itemStatusF) {
+    rooms = rooms.filter(r => {
+      const its = db.items.filter(a=>a.roomId===r.id);
+      return its.some(a => (!itemTypeF||a.itemType===itemTypeF) && (!itemStatusF||a.status===itemStatusF));
+    });
+  }
+
+  const container = document.getElementById('roomsList');
+  if(!rooms.length){ container.innerHTML='<div class="text-slate-500 py-8 text-center">沒有符合條件的房間</div>'; return; }
+
+  container.innerHTML = rooms.map(room=>{
+    const its = db.items.filter(a=>a.roomId===room.id);
+    const expanded = expandedRooms.has(room.id);
+    const statusBadges = its.map(a=>{
+      const cls = a.status==='正常'?'badge-green':a.status==='維修中'?'badge-yellow':a.status==='待更換'?'badge-blue':'badge-gray';
+      return `<span class="badge ${cls}">${a.itemType}:${a.status}</span>`;
+    }).join('');
+
+    const itemTable = expanded && its.length ? `
+      <div class="mt-3 border-t border-slate-700 pt-3">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs text-slate-400 font-semibold">項目 (${its.length} 項)</span>
+          <button class="btn-sm" onclick="openItemModal(event,'${room.id}')">+ 新增項目</button>
+        </div>
+        <table class="tbl w-full">
+          <thead><tr><th>類型</th><th>子類型</th><th>廠牌</th><th>型號/名稱</th><th>規格</th><th>狀態</th><th>安裝日期</th><th>最後保養/更換</th><th>操作</th></tr></thead>
+          <tbody>${its.map(a=>`<tr>
+            <td>${esc(a.itemType)}</td><td>${esc(a.subType||'-')}</td><td>${esc(a.brand||'-')}</td><td>${esc(a.model||'-')}</td>
+            <td>${esc(a.spec||'-')}</td>
+            <td><span class="badge ${a.status==='正常'?'badge-green':a.status==='維修中'?'badge-yellow':a.status==='待更換'?'badge-blue':'badge-gray'}">${a.status}</span></td>
+            <td>${a.installDate||'-'}</td><td>${a.lastService||'-'}</td>
+            <td class="flex gap-1">
+              <button class="btn-sm" onclick="openItemModal(event,'${room.id}','${a.id}')">編輯</button>
+              <button class="btn-sm" style="color:#f87171" onclick="deleteItem(event,'${a.id}')">刪除</button>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>` : (expanded && !its.length ? `
+      <div class="mt-3 border-t border-slate-700 pt-3 flex justify-between items-center">
+        <span class="text-slate-500 text-sm">尚無項目</span>
+        <button class="btn-sm" onclick="openItemModal(event,'${room.id}')">+ 新增項目</button>
+      </div>` : '');
+
+    return `<div class="card mb-3">
+      <div class="flex items-center justify-between cursor-pointer" onclick="toggleRoom('${room.id}')">
+        <div class="flex items-center gap-3">
+          <span class="text-blue-400 font-bold text-lg mono">${room.number}</span>
+          <span class="text-white font-semibold">${esc(room.name)||'(無名稱)'}</span>
+          <span class="badge badge-gray">${room.floor}F</span>
+          <span class="text-slate-500 text-sm">${esc(room.area)||''}</span>
+          <div class="flex gap-1 flex-wrap">${statusBadges}</div>
+          <span class="text-slate-500 text-xs">${its.length} 項</span>
+        </div>
+        <div class="flex items-center gap-2">
+          ${room.note?`<span class="text-slate-500 text-xs max-w-xs truncate">${esc(room.note)}</span>`:''}
+          <button class="btn-sm" onclick="openRoomModal(event,'${room.id}')">編輯</button>
+          <button class="btn-sm" style="color:#f87171" onclick="deleteRoom(event,'${room.id}')">刪除</button>
+          <svg class="w-4 h-4 text-slate-400 transform transition-transform ${expanded?'rotate-180':''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+      </div>
+      ${itemTable}
+    </div>`;
+  }).join('');
+}
+
+function toggleRoom(id) {
+  if(expandedRooms.has(id)) expandedRooms.delete(id);
+  else expandedRooms.add(id);
+  renderRooms();
+}
+
+// Room Modal
+let editRoomId = null;
+function openRoomModal(e, id) {
+  if(e) e.stopPropagation();
+  editRoomId = id || null;
+  if(id) {
+    const r = db.rooms.find(x=>x.id===id);
+    document.getElementById('rm_number').value = r.number;
+    document.getElementById('rm_name').value = r.name||'';
+    document.getElementById('rm_floor').value = r.floor||'2';
+    document.getElementById('rm_area').value = r.area||'';
+    document.getElementById('rm_note').value = r.note||'';
+    document.getElementById('roomModalTitle').textContent = '編輯房間';
+  } else {
+    ['rm_number','rm_name','rm_note'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('rm_area').value = DEFAULT_AREA;
+    document.getElementById('rm_floor').value = '2';
+    document.getElementById('roomModalTitle').textContent = '新增房間';
+  }
+  openModal('roomModal');
+}
+function saveRoom() {
+  const number = document.getElementById('rm_number').value.trim();
+  if(!number) { toast('房號必填','error'); return; }
+  if(!editRoomId && db.rooms.find(r=>r.number===number)) { toast('房號已存在','error'); return; }
+  const data = {
+    number,
+    name: document.getElementById('rm_name').value.trim(),
+    floor: document.getElementById('rm_floor').value,
+    area: document.getElementById('rm_area').value.trim(),
+    note: document.getElementById('rm_note').value.trim()
+  };
+  if(editRoomId) {
+    const idx = db.rooms.findIndex(x=>x.id===editRoomId);
+    db.rooms[idx] = {...db.rooms[idx], ...data};
+    logAction('編輯房間', `房號${data.number}`);
+    toast('房間已更新');
+  } else {
+    db.rooms.push({id:'r'+uid(), ...data});
+    logAction('新增房間', `房號${data.number}`);
+    toast('房間已新增');
+  }
+  saveDB(); closeModal('roomModal'); renderRooms();
+}
+function deleteRoom(e, id) {
+  if(e) e.stopPropagation();
+  const r = db.rooms.find(x=>x.id===id);
+  confirm2('確認刪除', `刪除房間 ${r.number} 將一併刪除其所有項目與更換記錄,確定?`, ()=>{
+    db.items = db.items.filter(a=>a.roomId!==id);
+    db.records = db.records.filter(r=>r.roomId!==id);
+    db.rooms = db.rooms.filter(x=>x.id!==id);
+    logAction('刪除房間', `房號${r.number}`);
+    saveDB(); renderRooms(); toast('房間已刪除');
+  });
+}
+
+// Item Modal
+let editItemId = null;
+
+function populateItemTypeSelect() {
+  document.getElementById('it_type').innerHTML = ITEM_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+
+function onItemTypeChange() {
+  const type = document.getElementById('it_type').value;
+  const isAC = type === '冷氣機組';
+  document.getElementById('itSubTypeRow').style.display = isAC ? '' : 'none';
+  const brandInput = document.getElementById('it_brand');
+  if(isAC) {
+    brandInput.value = AC_BRAND;
+    brandInput.readOnly = true;
+  } else {
+    brandInput.readOnly = false;
+    if(brandInput.value === AC_BRAND) brandInput.value = '';
+  }
+  document.getElementById('it_specLabel').textContent = isAC ? '冷房能力 (BTU)' : '規格';
+  document.getElementById('it_spec').placeholder = isAC ? '9000' : '選填';
+}
+
+function openItemModal(e, roomId, itemId) {
+  e.stopPropagation();
+  populateItemTypeSelect();
+  editItemId = itemId || null;
+  document.getElementById('it_roomId').value = roomId;
+  if(itemId) {
+    const a = db.items.find(x=>x.id===itemId);
+    document.getElementById('it_type').value = a.itemType||'冷氣機組';
+    onItemTypeChange();
+    document.getElementById('it_subType').value = a.subType||'室內機';
+    document.getElementById('it_brand').value = a.brand||'';
+    document.getElementById('it_model').value = a.model||'';
+    document.getElementById('it_spec').value = a.spec||'';
+    document.getElementById('it_installDate').value = a.installDate||'';
+    document.getElementById('it_status').value = a.status||'正常';
+    document.getElementById('it_lastService').value = a.lastService||'';
+    document.getElementById('it_note').value = a.note||'';
+    document.getElementById('itemModalTitle').textContent = '編輯項目';
+  } else {
+    ['it_model','it_spec','it_installDate','it_lastService','it_note'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('it_type').value = '冷氣機組';
+    document.getElementById('it_subType').value = '室內機';
+    document.getElementById('it_status').value = '正常';
+    onItemTypeChange();
+    document.getElementById('itemModalTitle').textContent = '新增項目';
+  }
+  openModal('itemModal');
+}
+function saveItem() {
+  const itemType = document.getElementById('it_type').value;
+  const model = document.getElementById('it_model').value.trim();
+  if(!model) { toast('型號/名稱必填','error'); return; }
+  const isAC = itemType === '冷氣機組';
+  const data = {
+    roomId: document.getElementById('it_roomId').value,
+    itemType,
+    subType: isAC ? document.getElementById('it_subType').value : '',
+    brand: isAC ? AC_BRAND : document.getElementById('it_brand').value.trim(),
+    model,
+    spec: document.getElementById('it_spec').value.trim(),
+    installDate: document.getElementById('it_installDate').value,
+    status: document.getElementById('it_status').value,
+    lastService: document.getElementById('it_lastService').value,
+    note: document.getElementById('it_note').value.trim()
+  };
+  const room = db.rooms.find(r=>r.id===data.roomId);
+  if(editItemId) {
+    const idx = db.items.findIndex(x=>x.id===editItemId);
+    db.items[idx] = {...db.items[idx], ...data};
+    logAction('編輯項目', `${itemType} ${model} (房間 ${room?room.number:'-'})`);
+    toast('項目已更新');
+  } else {
+    db.items.push({id:'item'+uid(), ...data});
+    logAction('新增項目', `${itemType} ${model} (房間 ${room?room.number:'-'})`);
+    toast('項目已新增');
+  }
+  saveDB(); closeModal('itemModal'); renderRooms();
+}
+function deleteItem(e, id) {
+  e.stopPropagation();
+  const a = db.items.find(x=>x.id===id);
+  confirm2('確認刪除', `刪除此項目將一併刪除相關更換記錄?`, ()=>{
+    // rollback inventory
+    db.records.filter(r=>r.itemId===id).forEach(r=>rollbackRecord(r));
+    db.records = db.records.filter(r=>r.itemId!==id);
+    db.items = db.items.filter(x=>x.id!==id);
+    logAction('刪除項目', `${a?a.itemType+' '+a.model:id}`);
+    saveDB(); renderRooms(); toast('項目已刪除');
+  });
+}
+
+// ============================================================
+//  RENDER PARTS
+// ============================================================
+function renderParts() {
+  const search = (document.getElementById('partSearch').value||'').toLowerCase();
+  const parts = db.parts.filter(p=>
+    !search || p.name.toLowerCase().includes(search) || (p.category||'').toLowerCase().includes(search)
+  );
+  document.getElementById('partsTableBody').innerHTML = parts.map(p=>`<tr>
+    <td class="font-semibold text-white">${esc(p.name)}</td>
+    <td>${esc(p.category||'-')}</td>
+    <td class="text-slate-400">${esc(p.spec||'-')}</td>
+    <td>${esc(p.unit||'個')}</td>
+    <td><span class="badge ${p.stock===0?'badge-red':p.stock<10?'badge-yellow':'badge-green'}">${p.stock}</span></td>
+    <td>NT$${(p.cost||0).toLocaleString()}</td>
+    <td class="text-slate-400 max-w-xs truncate">${esc(p.note||'-')}</td>
+    <td class="flex gap-1">
+      <button class="btn-sm" onclick="openPartModal('${p.id}')">編輯</button>
+      <button class="btn-sm" style="color:#f87171" onclick="deletePart('${p.id}')">刪除</button>
+    </td>
+  </tr>`).join('');
+}
+
+let editPartId = null;
+function openPartModal(id) {
+  editPartId = id || null;
+  if(id) {
+    const p = db.parts.find(x=>x.id===id);
+    document.getElementById('pt_name').value = p.name||'';
+    document.getElementById('pt_category').value = p.category||'';
+    document.getElementById('pt_spec').value = p.spec||'';
+    document.getElementById('pt_unit').value = p.unit||'個';
+    document.getElementById('pt_stock').value = p.stock||0;
+    document.getElementById('pt_cost').value = p.cost||0;
+    document.getElementById('pt_note').value = p.note||'';
+    document.getElementById('partModalTitle').textContent = '編輯零件';
+  } else {
+    ['pt_name','pt_category','pt_spec','pt_note'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('pt_unit').value='個';
+    document.getElementById('pt_stock').value=0;
+    document.getElementById('pt_cost').value=0;
+    document.getElementById('partModalTitle').textContent = '新增零件';
+  }
+  openModal('partModal');
+}
+function savePart() {
+  const name = document.getElementById('pt_name').value.trim();
+  if(!name) { toast('名稱必填','error'); return; }
+  const data = {
+    name,
+    category: document.getElementById('pt_category').value.trim(),
+    spec: document.getElementById('pt_spec').value.trim(),
+    unit: document.getElementById('pt_unit').value.trim()||'個',
+    stock: Number(document.getElementById('pt_stock').value)||0,
+    cost: Number(document.getElementById('pt_cost').value)||0,
+    note: document.getElementById('pt_note').value.trim()
+  };
+  if(editPartId) {
+    const idx = db.parts.findIndex(x=>x.id===editPartId);
+    db.parts[idx] = {...db.parts[idx], ...data};
+    logAction('編輯零件', name);
+    toast('零件已更新');
+  } else {
+    db.parts.push({id:'pt'+uid(), ...data});
+    logAction('新增零件', name);
+    toast('零件已新增');
+  }
+  saveDB(); closeModal('partModal'); renderParts();
+}
+function deletePart(id) {
+  const p = db.parts.find(x=>x.id===id);
+  confirm2('確認刪除', `刪除零件「${p.name}」?`, ()=>{
+    db.parts = db.parts.filter(x=>x.id!==id);
+    logAction('刪除零件', p.name);
+    saveDB(); renderParts(); toast('零件已刪除');
+  });
+}
+
+// ============================================================
+//  RENDER RECORDS
+// ============================================================
+function populateRecordFilters() {
+  const rSel = document.getElementById('recordRoomFilter');
+  const curR = rSel.value;
+  rSel.innerHTML = '<option value="">全部房間</option>' + db.rooms.map(r=>`<option value="${r.id}">${r.number} ${r.name||''}</option>`).join('');
+  rSel.value = curR;
+
+  const pSel = document.getElementById('recordPartFilter');
+  const curP = pSel.value;
+  pSel.innerHTML = '<option value="">全部零件</option>' + db.parts.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  pSel.value = curP;
+}
+
+function renderRecords() {
+  populateRecordFilters();
+  const roomF = document.getElementById('recordRoomFilter').value;
+  const partF = document.getElementById('recordPartFilter').value;
+  let records = db.records.filter(r=>
+    (!roomF||r.roomId===roomF) && (!partF||r.partId===partF)
+  ).sort((a,b)=>b.date.localeCompare(a.date));
+
+  document.getElementById('recordsTableBody').innerHTML = records.map(rec=>{
+    const room = db.rooms.find(x=>x.id===rec.roomId);
+    const item = db.items.find(x=>x.id===rec.itemId);
+    const part = db.parts.find(x=>x.id===rec.partId);
+    const reasonCls = {故障:'badge-red',定期保養:'badge-blue',預防性:'badge-yellow',升級:'badge-green'}[rec.reason]||'badge-gray';
+    return `<tr>
+      <td>${rec.date||'-'}</td>
+      <td>${room?room.number+' '+room.name:'-'}</td>
+      <td class="text-slate-400">${item?item.itemType+(item.subType?'('+item.subType+')':'')+' '+(item.model||''):'-'}</td>
+      <td class="font-semibold text-white">${part?part.name:'-'}</td>
+      <td>${rec.qty||0} ${part?part.unit||'個':'個'}</td>
+      <td>${esc(rec.tech||'-')}</td>
+      <td>NT$${(rec.cost||0).toLocaleString()}</td>
+      <td><span class="badge ${reasonCls}">${rec.reason||'-'}</span></td>
+      <td class="text-slate-400 max-w-xs truncate">${esc(rec.note||'-')}</td>
+      <td class="flex gap-1">
+        <button class="btn-sm" onclick="openRecordModal('${rec.id}')">編輯</button>
+        <button class="btn-sm" style="color:#f87171" onclick="deleteRecord('${rec.id}')">刪除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function rollbackRecord(rec) {
+  const partIdx = db.parts.findIndex(x=>x.id===rec.partId);
+  if(partIdx>=0) db.parts[partIdx].stock += (rec.qty||0);
+}
+function applyRecord(rec) {
+  const partIdx = db.parts.findIndex(x=>x.id===rec.partId);
+  if(partIdx>=0) db.parts[partIdx].stock = Math.max(0, db.parts[partIdx].stock - (rec.qty||0));
+}
+
+let editRecordId = null;
+function openRecordModal(id) {
+  editRecordId = id || null;
+  // populate selects
+  const rSel = document.getElementById('rec_roomId');
+  rSel.innerHTML = '<option value="">-- 選擇房間 --</option>' + db.rooms.map(r=>`<option value="${r.id}">${r.number} ${r.name||''}</option>`).join('');
+  const pSel = document.getElementById('rec_partId');
+  pSel.innerHTML = '<option value="">-- 選擇零件 --</option>' + db.parts.map(p=>`<option value="${p.id}">${p.name} (庫存:${p.stock})</option>`).join('');
+
+  if(id) {
+    const rec = db.records.find(x=>x.id===id);
+    rSel.value = rec.roomId||'';
+    updateItemOptions(rec.itemId);
+    document.getElementById('rec_itemId').value = rec.itemId||'';
+    pSel.value = rec.partId||'';
+    document.getElementById('rec_qty').value = rec.qty||1;
+    document.getElementById('rec_date').value = rec.date||'';
+    document.getElementById('rec_tech').value = rec.tech||'';
+    document.getElementById('rec_cost').value = rec.cost||0;
+    document.getElementById('rec_reason').value = rec.reason||'故障';
+    document.getElementById('rec_note').value = rec.note||'';
+    document.getElementById('recordModalTitle').textContent = '編輯更換記錄';
+  } else {
+    document.getElementById('rec_itemId').innerHTML = '<option value="">-- 選擇項目 --</option>';
+    ['rec_qty','rec_date','rec_tech','rec_note'].forEach(i=>{
+      if(i==='rec_qty') document.getElementById(i).value=1;
+      else document.getElementById(i).value='';
+    });
+    document.getElementById('rec_cost').value=0;
+    document.getElementById('rec_reason').value='故障';
+    document.getElementById('rec_date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('recordModalTitle').textContent = '新增更換記錄';
+  }
+  openModal('recordModal');
+}
+function updateItemOptions(selItemId) {
+  const roomId = document.getElementById('rec_roomId').value;
+  const its = db.items.filter(a=>a.roomId===roomId);
+  const sel = document.getElementById('rec_itemId');
+  sel.innerHTML = '<option value="">-- 選擇項目 --</option>' + its.map(a=>`<option value="${a.id}">${a.itemType}${a.subType?'('+a.subType+')':''} ${a.brand?a.brand+' ':''}${a.model||''}</option>`).join('');
+  if(selItemId) sel.value = selItemId;
+}
+function saveRecord() {
+  const roomId = document.getElementById('rec_roomId').value;
+  const itemId = document.getElementById('rec_itemId').value;
+  const partId = document.getElementById('rec_partId').value;
+  const qty = Number(document.getElementById('rec_qty').value)||0;
+  const date = document.getElementById('rec_date').value;
+  if(!roomId||!itemId||!partId||!qty||!date) { toast('必填欄位未填','error'); return; }
+
+  const data = {
+    roomId, itemId, partId, qty, date,
+    tech: document.getElementById('rec_tech').value.trim(),
+    cost: Number(document.getElementById('rec_cost').value)||0,
+    reason: document.getElementById('rec_reason').value,
+    note: document.getElementById('rec_note').value.trim()
+  };
+  const part = db.parts.find(x=>x.id===partId);
+  const room = db.rooms.find(x=>x.id===roomId);
+
+  if(editRecordId) {
+    const idx = db.records.findIndex(x=>x.id===editRecordId);
+    rollbackRecord(db.records[idx]);
+    db.records[idx] = {...db.records[idx], ...data};
+    applyRecord(db.records[idx]);
+    logAction('編輯更換記錄', `${part?part.name:partId} x${qty} 房間${room?room.number:'-'}`);
+    toast('記錄已更新');
+  } else {
+    const rec = {id:'rec'+uid(), ...data};
+    db.records.push(rec);
+    applyRecord(rec);
+    logAction('新增更換記錄', `${part?part.name:partId} x${qty} 房間${room?room.number:'-'}`);
+    toast('記錄已新增');
+  }
+  saveDB(); closeModal('recordModal'); renderRecords();
+}
+function deleteRecord(id) {
+  const rec = db.records.find(x=>x.id===id);
+  const part = db.parts.find(x=>x.id===rec.partId);
+  confirm2('確認刪除', `刪除此更換記錄並回滾庫存?`, ()=>{
+    rollbackRecord(rec);
+    db.records = db.records.filter(x=>x.id!==id);
+    logAction('刪除更換記錄', `${part?part.name:rec.partId} x${rec.qty}`);
+    saveDB(); renderRecords(); toast('記錄已刪除');
+  });
+}
+
+// ============================================================
+//  RENDER VISITOR
+// ============================================================
+function formatFP(fp) {
+  return fp.match(/.{1,8}/g).join('-');
+}
+
+function renderVisitor() {
+  const v = loadVisitor();
+  if(!v) { document.getElementById('fpFull').textContent = '無資料'; return; }
+  document.getElementById('fpFull').textContent = formatFP(v.visitorId);
+  document.getElementById('fpShort').textContent = v.shortId;
+  document.getElementById('headerVisitorId').textContent = v.shortId;
+
+  const info = v.deviceInfo||{};
+  const fields = [
+    ['瀏覽器', info.browser],
+    ['作業系統', info.os],
+    ['螢幕解析度', info.screen],
+    ['色深', info.colorDepth],
+    ['平台', info.platform],
+    ['語言', info.language],
+    ['時區', info.timezone],
+    ['時差', info.tzOffset],
+    ['CPU 核心', info.cpuCores],
+    ['記憶體', info.ramGB],
+    ['觸控', info.touch],
+    ['DNT', info.dnt],
+    ['首次造訪', fmtDt(v.firstVisit)],
+    ['最後造訪', fmtDt(v.lastVisit)],
+    ['造訪次數', v.visitCount+' 次'],
+    ['Referrer', info.referrer],
+    ['上線狀態', info.online],
+    ['visitorId', '<span class="mono text-blue-400">'+v.visitorId.slice(0,16)+'...</span>']
+  ];
+  document.getElementById('visitorDetails').innerHTML = fields.map(([k,val])=>
+    `<div class="text-slate-400">${k}</div><div class="text-slate-200">${val||'-'}</div>`
+  ).join('');
+
+  // Session log
+  const sessions = v.sessionLog||[];
+  document.getElementById('sessionLogBody').innerHTML = sessions.length ? sessions.map(s=>`<tr>
+    <td class="text-xs mono">${fmtDt(s.at)}</td>
+    <td class="text-xs text-slate-400 max-w-xs truncate">${esc(s.url)}</td>
+    <td class="text-xs text-slate-400 max-w-sm truncate">${esc(s.ua)}</td>
+    <td><span class="badge ${s.online==='上線'?'badge-green':'badge-red'}">${s.online}</span></td>
+  </tr>`).join('') : '<tr><td colspan="4" class="text-center text-slate-500">無記錄</td></tr>';
+
+  // Action log
+  const actions = v.actionLog||[];
+  document.getElementById('actionLogBody').innerHTML = actions.length ? actions.map(a=>`<tr>
+    <td class="text-xs mono">${fmtDt(a.at)}</td>
+    <td><span class="badge badge-blue">${esc(a.action)}</span></td>
+    <td class="text-slate-300 text-sm">${esc(a.detail)}</td>
+  </tr>`).join('') : '<tr><td colspan="3" class="text-center text-slate-500">無操作記錄</td></tr>';
+}
+
+function exportVisitorJSON() {
+  const v = loadVisitor();
+  if(!v) { toast('無訪客資料','error'); return; }
+  const blob = new Blob([JSON.stringify(v,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`visitor-${v.shortId}.json`;
+  a.click();
+  logAction('匯出', '訪客 JSON');
+  toast('訪客資料已匯出');
+}
+function clearVisitorData() {
+  confirm2('確認清除', '清除後下次載入將建立全新訪客紀錄,確定?', ()=>{
+    localStorage.removeItem(VISITOR_KEY);
+    toast('訪客紀錄已清除');
+    setTimeout(()=>location.reload(),1000);
+  });
+}
+function exportActionLog() {
+  const v = loadVisitor();
+  if(!v||!v.actionLog||!v.actionLog.length) { toast('無操作日誌','error'); return; }
+  const blob = new Blob([JSON.stringify(v.actionLog,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`action-log-${v.shortId}.json`;
+  a.click();
+  toast('操作日誌已匯出');
+}
+function clearActionLog() {
+  confirm2('確認清除', '清除所有操作日誌?', ()=>{
+    let v = loadVisitor();
+    if(v) { v.actionLog=[]; saveVisitorStore(v); }
+    renderVisitor();
+    toast('操作日誌已清除');
+  });
+}
+
+// ============================================================
+//  EXPORT / IMPORT
+// ============================================================
+function exportData() {
+  const blob = new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`repair-mgmt-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  logAction('匯出', '完整資料 JSON 備份');
+  toast('資料已匯出');
+}
+function importData(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if(!data.rooms||!data.parts) throw new Error('格式錯誤');
+      if(!data.items) data.items = data.acUnits || []; // 相容舊版備份欄位名稱
+      db = data;
+      saveDB();
+      logAction('匯入', `JSON 備份 (${file.name})`);
+      toast('資料已匯入');
+      renderDashboard();
+    } catch(err) {
+      toast('匯入失敗: '+err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+function exportCSV() {
+  const headers = ['日期','房號','房間名稱','項目類型','品牌','型號','零件','數量','技術員','成本','原因','備註'];
+  const rows = db.records.map(r=>{
+    const room=db.rooms.find(x=>x.id===r.roomId);
+    const item=db.items.find(x=>x.id===r.itemId);
+    const part=db.parts.find(x=>x.id===r.partId);
+    return [
+      r.date,
+      room?room.number:'-',
+      room?room.name:'',
+      item?item.itemType+(item.subType?'('+item.subType+')':''):'',
+      item?item.brand:'',
+      item?item.model:'',
+      part?part.name:'',
+      r.qty,
+      r.tech||'',
+      r.cost||0,
+      r.reason||'',
+      r.note||''
+    ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+  const csv = [headers.join(','),...rows].join('\n');
+  const blob = new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`repair-mgmt-records-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  logAction('匯出', '更換記錄 CSV');
+  toast('CSV 已匯出');
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+(function init() {
+  // Init visitor first
+  const v = initVisitor();
+  document.getElementById('headerVisitorId').textContent = v.shortId;
+
+  // Load or init DB
+  const saved = loadDB();
+  if(saved && saved.rooms && saved.rooms.length) {
+    db = saved;
+    if(!db.items) db.items = saved.acUnits || []; // 相容舊版資料欄位名稱
+  } else {
+    initSampleData();
+  }
+
+  renderDashboard();
+})();
+</script>
+</body>
+</html>
