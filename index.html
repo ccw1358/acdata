@@ -141,9 +141,13 @@
     <input type="text" id="roomSearch" placeholder="搜尋房號 / 名稱..." class="max-w-xs" oninput="renderRooms()">
     <select id="floorFilter" onchange="renderRooms()" class="max-w-xs">
       <option value="">全部樓層</option>
+      <option value="1">1 樓</option>
       <option value="2">2 樓</option>
       <option value="3">3 樓</option>
       <option value="4">4 樓</option>
+      <option value="5">5 樓</option>
+      <option value="6">6 樓</option>
+      <option value="B1">地下一樓 (B1)</option>
     </select>
     <select id="itemTypeFilter" onchange="renderRooms()" class="max-w-xs">
       <option value="">全部項目類型</option>
@@ -258,7 +262,7 @@
       <div><label class="form-label">房號 *</label><input id="rm_number" type="text" placeholder="201"></div>
       <div><label class="form-label">名稱</label><input id="rm_name" type="text" placeholder="標準房"></div>
       <div><label class="form-label">樓層 *</label>
-        <select id="rm_floor"><option value="2">2 樓</option><option value="3">3 樓</option><option value="4">4 樓</option></select>
+        <select id="rm_floor"><option value="1">1 樓</option><option value="2">2 樓</option><option value="3">3 樓</option><option value="4">4 樓</option><option value="5">5 樓</option><option value="6">6 樓</option><option value="B1">地下一樓 (B1)</option></select>
       </div>
       <div><label class="form-label">區域</label><input id="rm_area" type="text" placeholder="忠義訓練中心"></div>
       <div class="col-span-2"><label class="form-label">備註</label><textarea id="rm_note" rows="2"></textarea></div>
@@ -356,7 +360,12 @@
 // ============================================================
 const ITEM_TYPES = ['冷氣機組','桌燈','衣櫃滑軌','遙控器','T8燈管','按壓式落水頭','馬桶蓋','馬桶止水皮','水箱進水器','蓮蓬頭','其他'];
 const AC_BRAND = '日立'; // 系統內所有冷氣品牌統一為日立
-const FLOORS = ['2','3','4'];
+const FLOORS = ['1','2','3','4','5','6','B1'];
+
+// 樓層顯示文字: 地上樓層顯示為 "1F"~"6F",地下一樓顯示為 "B1"
+function floorLabel(floor) {
+  return floor === 'B1' ? 'B1' : floor + 'F';
+}
 const DEFAULT_AREA = '忠義訓練中心';
 
 // ============================================================
@@ -558,16 +567,19 @@ let db = { rooms:[], items:[], parts:[], records:[] };
 // ============================================================
 //  SAMPLE DATA
 // ============================================================
-// 依需求建立 2F/3F/4F 房號: 200(功能房)/300/400、201-214(標準房)、216(二間室) 依樓層前綴
-function buildRoomsForFloor(floorNum) {
+// 依需求建立各樓層房號: 地上樓層 100(功能房)/200/300...、101-114(標準房)、116(二間室) 依樓層前綴
+// 地下一樓(B1)房號則以 B1 為前綴,例如 B101, B102...B116,避免與地上樓層房號重複
+function buildRoomsForFloor(floor) {
   const rooms = [];
-  const base = floorNum*100;
-  rooms.push({ id:'r'+base, number:String(base), name:'功能房', floor:String(floorNum), area:DEFAULT_AREA, note:'' });
+  const isBasement = floor === 'B1';
+  const base = isBasement ? 100 : Number(floor)*100;
+  const mk = n => isBasement ? ('B'+n) : String(n);
+  rooms.push({ id:'r'+mk(base), number:mk(base), name:'功能房', floor, area:DEFAULT_AREA, note:'' });
   for(let n=1;n<=14;n++){
     const num = base+n;
-    rooms.push({ id:'r'+num, number:String(num), name:'標準房', floor:String(floorNum), area:DEFAULT_AREA, note:'' });
+    rooms.push({ id:'r'+mk(num), number:mk(num), name:'標準房', floor, area:DEFAULT_AREA, note:'' });
   }
-  rooms.push({ id:'r'+(base+16), number:String(base+16), name:'二間室', floor:String(floorNum), area:DEFAULT_AREA, note:'' });
+  rooms.push({ id:'r'+mk(base+16), number:mk(base+16), name:'二間室', floor, area:DEFAULT_AREA, note:'' });
   return rooms;
 }
 
@@ -606,8 +618,8 @@ function buildItemsForRoom(room, idx) {
 }
 
 function initSampleData() {
-  // Rooms: 2F/3F/4F, 每層 16 間
-  const rooms = FLOORS.flatMap(f => buildRoomsForFloor(Number(f)));
+  // Rooms: 地上1F~6F, 地下B1, 每層 16 間
+  const rooms = FLOORS.flatMap(f => buildRoomsForFloor(f));
 
   // Items
   const items = [];
@@ -821,7 +833,7 @@ function renderRooms() {
         <div class="flex items-center gap-3">
           <span class="text-blue-400 font-bold text-lg mono">${room.number}</span>
           <span class="text-white font-semibold">${esc(room.name)||'(無名稱)'}</span>
-          <span class="badge badge-gray">${room.floor}F</span>
+          <span class="badge badge-gray">${floorLabel(room.floor)}</span>
           <span class="text-slate-500 text-sm">${esc(room.area)||''}</span>
           <div class="flex gap-1 flex-wrap">${statusBadges}</div>
           <span class="text-slate-500 text-xs">${its.length} 項</span>
