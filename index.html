@@ -417,7 +417,7 @@ function confirm2(title, msg, cb) {
   document.getElementById('confirmOkBtn').textContent = title.includes('清除') ? '確定清除' : '確定刪除';
 }
 function closeConfirm() { document.getElementById('confirmDialog').classList.remove('open'); confirmCb = null; }
-document.getElementById('confirmOkBtn').onclick = () => { closeConfirm(); if(confirmCb) confirmCb(); };
+document.getElementById('confirmOkBtn').onclick = () => { const cb = confirmCb; closeConfirm(); if(cb) cb(); };
 
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
