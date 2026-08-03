@@ -159,6 +159,7 @@
       <option value="待更換">待更換</option>
       <option value="停用">停用</option>
     </select>
+    <button class="btn-outline" onclick="openCategoryModal()">管理項目類別</button>
     <button class="btn-primary ml-auto" onclick="openRoomModal()">+ 新增房間</button>
   </div>
   <div id="roomsList"></div>
@@ -274,6 +275,24 @@
   </div>
 </div>
 
+<!-- Category Modal -->
+<div id="categoryModal" class="modal-bg">
+  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
+    <div class="text-lg font-bold text-white mb-4">管理項目類別</div>
+    <div class="flex gap-2 mb-4">
+      <input type="text" id="cat_newName" placeholder="輸入新類別名稱,例如:對講機">
+      <button class="btn-primary shrink-0" onclick="addCategoryFromModal()">新增</button>
+    </div>
+    <div class="form-label">內建類別 (無法刪除)</div>
+    <div id="catBuiltinList" class="flex flex-wrap gap-2 mb-4"></div>
+    <div class="form-label">自訂類別</div>
+    <div id="catCustomList" class="flex flex-col gap-2"></div>
+    <div class="flex gap-3 mt-5 justify-end">
+      <button class="btn-sm" onclick="closeModal('categoryModal')">關閉</button>
+    </div>
+  </div>
+</div>
+
 <!-- Item Modal -->
 <div id="itemModal" class="modal-bg">
   <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
@@ -359,6 +378,10 @@
 //  CONSTANTS
 // ============================================================
 const ITEM_TYPES = ['冷氣機組','桌燈','衣櫃滑軌','遙控器','T8燈管','按壓式落水頭','馬桶蓋','馬桶止水皮','水箱進水器','蓮蓬頭','其他'];
+// 取得完整項目類型清單 (內建 + 使用者自訂)
+function getAllItemTypes() {
+  return ITEM_TYPES.concat((db && db.customItemTypes) ? db.customItemTypes : []);
+}
 const AC_BRAND = '日立'; // 系統內所有冷氣品牌統一為日立
 const FLOORS = ['1','2','3','4','5','6','B1'];
 
@@ -562,7 +585,7 @@ function saveDB() {
   localStorage.setItem(DB_KEY, JSON.stringify(db));
 }
 
-let db = { rooms:[], items:[], parts:[], records:[] };
+let db = { rooms:[], items:[], parts:[], records:[], customItemTypes:[] };
 
 // ============================================================
 //  SAMPLE DATA
@@ -768,7 +791,7 @@ let expandedRooms = new Set();
 function populateItemTypeFilter() {
   const sel = document.getElementById('itemTypeFilter');
   const cur = sel.value;
-  sel.innerHTML = '<option value="">全部項目類型</option>' + ITEM_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('');
+  sel.innerHTML = '<option value="">全部項目類型</option>' + getAllItemTypes().map(t=>`<option value="${t}">${t}</option>`).join('');
   sel.value = cur;
 }
 
@@ -912,14 +935,82 @@ function deleteRoom(e, id) {
   });
 }
 
+// Category Management Modal
+function openCategoryModal() {
+  document.getElementById('cat_newName').value = '';
+  renderCategoryModal();
+  openModal('categoryModal');
+}
+function renderCategoryModal() {
+  document.getElementById('catBuiltinList').innerHTML = ITEM_TYPES.map(t=>
+    `<span class="badge badge-gray">${esc(t)}</span>`
+  ).join('');
+  const custom = db.customItemTypes || [];
+  document.getElementById('catCustomList').innerHTML = custom.length ? custom.map(t=>`
+    <div class="flex items-center justify-between bg-slate-900 border border-slate-700 rounded-md px-3 py-2">
+      <span class="text-sm text-slate-200">${esc(t)}</span>
+      <button class="btn-danger" onclick="deleteCustomCategory('${esc(t).replace(/'/g,"\\'")}')">刪除</button>
+    </div>`).join('') : '<div class="text-slate-500 text-sm">尚無自訂類別</div>';
+}
+function addCategoryFromModal() {
+  const input = document.getElementById('cat_newName');
+  const name = input.value.trim();
+  if(!name) { toast('請輸入類別名稱','error'); return; }
+  if(getAllItemTypes().includes(name)) { toast('此類別已存在','error'); return; }
+  db.customItemTypes = db.customItemTypes || [];
+  db.customItemTypes.push(name);
+  saveDB();
+  logAction('新增項目類別', name);
+  toast('已新增項目類別: '+name);
+  input.value = '';
+  renderCategoryModal();
+  populateItemTypeFilter();
+}
+function deleteCustomCategory(name) {
+  const inUse = db.items.some(a=>a.itemType===name);
+  const msg = inUse
+    ? `此類別已有項目使用,刪除類別後這些項目仍會保留原本的類型文字,但清單中將不再提供此選項。確定刪除「${name}」?`
+    : `確定刪除自訂類別「${name}」?`;
+  confirm2('確認刪除', msg, ()=>{
+    db.customItemTypes = (db.customItemTypes||[]).filter(t=>t!==name);
+    saveDB();
+    logAction('刪除項目類別', name);
+    toast('類別已刪除');
+    renderCategoryModal();
+    populateItemTypeFilter();
+  });
+}
+
 // Item Modal
 let editItemId = null;
 
-function populateItemTypeSelect() {
-  document.getElementById('it_type').innerHTML = ITEM_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('');
+function populateItemTypeSelect(selectedValue) {
+  const sel = document.getElementById('it_type');
+  const prev = selectedValue !== undefined ? selectedValue : sel.value;
+  sel.innerHTML = getAllItemTypes().map(t=>`<option value="${t}">${t}</option>`).join('')
+    + '<option value="__add__">+ 新增類別...</option>';
+  if(prev) sel.value = prev;
 }
 
 function onItemTypeChange() {
+  const sel = document.getElementById('it_type');
+  if(sel.value === '__add__') {
+    const name = (prompt('請輸入新的項目類別名稱:')||'').trim();
+    if(name && !getAllItemTypes().includes(name)) {
+      db.customItemTypes = db.customItemTypes || [];
+      db.customItemTypes.push(name);
+      saveDB();
+      logAction('新增項目類別', name);
+      toast('已新增項目類別: '+name);
+      populateItemTypeSelect(name);
+      populateItemTypeFilter();
+    } else if(name) {
+      toast('此類別已存在','error');
+      populateItemTypeSelect(name);
+    } else {
+      populateItemTypeSelect(ITEM_TYPES[0]);
+    }
+  }
   const type = document.getElementById('it_type').value;
   const isAC = type === '冷氣機組';
   document.getElementById('itSubTypeRow').style.display = isAC ? '' : 'none';
@@ -1341,6 +1432,7 @@ function importData(e) {
       const data = JSON.parse(ev.target.result);
       if(!data.rooms||!data.parts) throw new Error('格式錯誤');
       if(!data.items) data.items = data.acUnits || []; // 相容舊版備份欄位名稱
+      if(!data.customItemTypes) data.customItemTypes = []; // 相容舊版備份欄位名稱
       db = data;
       saveDB();
       logAction('匯入', `JSON 備份 (${file.name})`);
@@ -1397,6 +1489,7 @@ function exportCSV() {
   if(saved && saved.rooms && saved.rooms.length) {
     db = saved;
     if(!db.items) db.items = saved.acUnits || []; // 相容舊版資料欄位名稱
+    if(!db.customItemTypes) db.customItemTypes = []; // 相容舊版資料欄位名稱
   } else {
     initSampleData();
   }
