@@ -161,6 +161,7 @@
       <option value="停用">停用</option>
     </select>
     <button class="btn-outline" onclick="openCategoryModal()">管理項目類別</button>
+    <button class="btn-outline" onclick="openBatchItemModal()">新增項目(全部房間)</button>
     <button class="btn-primary ml-auto" onclick="openRoomModal()">+ 新增房間</button>
   </div>
   <div id="roomsList"></div>
@@ -274,18 +275,20 @@
 
 <!-- Room Modal -->
 <div id="roomModal" class="modal-bg">
-  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
-    <div class="text-lg font-bold text-white mb-4" id="roomModalTitle">新增房間</div>
-    <div class="grid grid-cols-2 gap-3">
-      <div><label class="form-label">房號 *</label><input id="rm_number" type="text" placeholder="201"></div>
-      <div><label class="form-label">名稱</label><input id="rm_name" type="text" placeholder="標準房"></div>
-      <div><label class="form-label">樓層 *</label>
-        <select id="rm_floor"><option value="1">1 樓</option><option value="2">2 樓</option><option value="3">3 樓</option><option value="4">4 樓</option><option value="5">5 樓</option><option value="6">6 樓</option><option value="B1">地下一樓 (B1)</option></select>
+  <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-lg mx-4 flex flex-col" style="max-height:90vh;display:flex;flex-direction:column;">
+    <div class="p-6 overflow-y-auto" style="overflow-y:auto;">
+      <div class="text-lg font-bold text-white mb-4" id="roomModalTitle">新增房間</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">房號 *</label><input id="rm_number" type="text" placeholder="201"></div>
+        <div><label class="form-label">名稱</label><input id="rm_name" type="text" placeholder="標準房"></div>
+        <div><label class="form-label">樓層 *</label>
+          <select id="rm_floor"><option value="1">1 樓</option><option value="2">2 樓</option><option value="3">3 樓</option><option value="4">4 樓</option><option value="5">5 樓</option><option value="6">6 樓</option><option value="B1">地下一樓 (B1)</option></select>
+        </div>
+        <div><label class="form-label">區域</label><input id="rm_area" type="text" placeholder="忠義訓練中心"></div>
+        <div class="col-span-2"><label class="form-label">備註</label><textarea id="rm_note" rows="2"></textarea></div>
       </div>
-      <div><label class="form-label">區域</label><input id="rm_area" type="text" placeholder="忠義訓練中心"></div>
-      <div class="col-span-2"><label class="form-label">備註</label><textarea id="rm_note" rows="2"></textarea></div>
     </div>
-    <div class="flex gap-3 mt-4 justify-end">
+    <div class="flex gap-3 justify-end px-6 py-4 border-t border-slate-700 shrink-0">
       <button class="btn-sm" onclick="closeModal('roomModal')">取消</button>
       <button class="btn-primary" onclick="saveRoom()">儲存</button>
     </div>
@@ -294,17 +297,19 @@
 
 <!-- Category Modal -->
 <div id="categoryModal" class="modal-bg">
-  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
-    <div class="text-lg font-bold text-white mb-4">管理項目類別</div>
-    <div class="flex gap-2 mb-4">
-      <input type="text" id="cat_newName" placeholder="輸入新類別名稱,例如:對講機">
-      <button class="btn-primary shrink-0" onclick="addCategoryFromModal()">新增</button>
+  <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-md mx-4 flex flex-col" style="max-height:90vh;display:flex;flex-direction:column;">
+    <div class="p-6 overflow-y-auto" style="overflow-y:auto;">
+      <div class="text-lg font-bold text-white mb-4">管理項目類別</div>
+      <div class="flex gap-2 mb-4">
+        <input type="text" id="cat_newName" placeholder="輸入新類別名稱,例如:對講機">
+        <button class="btn-primary shrink-0" onclick="addCategoryFromModal()">新增</button>
+      </div>
+      <div class="form-label">內建類別 (無法刪除)</div>
+      <div id="catBuiltinList" class="flex flex-wrap gap-2 mb-4"></div>
+      <div class="form-label">自訂類別</div>
+      <div id="catCustomList" class="flex flex-col gap-2"></div>
     </div>
-    <div class="form-label">內建類別 (無法刪除)</div>
-    <div id="catBuiltinList" class="flex flex-wrap gap-2 mb-4"></div>
-    <div class="form-label">自訂類別</div>
-    <div id="catCustomList" class="flex flex-col gap-2"></div>
-    <div class="flex gap-3 mt-5 justify-end">
+    <div class="flex gap-3 justify-end px-6 py-4 border-t border-slate-700 shrink-0">
       <button class="btn-sm" onclick="closeModal('categoryModal')">關閉</button>
     </div>
   </div>
@@ -312,50 +317,86 @@
 
 <!-- Item Modal -->
 <div id="itemModal" class="modal-bg">
-  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
-    <div class="text-lg font-bold text-white mb-4" id="itemModalTitle">新增項目</div>
-    <div class="grid grid-cols-2 gap-3">
-      <div class="col-span-2"><label class="form-label">所屬房間 *</label>
-        <select id="it_roomId"></select>
+  <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-lg mx-4 flex flex-col" style="max-height:90vh;display:flex;flex-direction:column;">
+    <div class="p-6 overflow-y-auto" style="overflow-y:auto;">
+      <div class="text-lg font-bold text-white mb-4" id="itemModalTitle">新增項目</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2"><label class="form-label">所屬房間 *</label>
+          <select id="it_roomId"></select>
+        </div>
+        <div class="col-span-2"><label class="form-label">項目類型 *</label>
+          <select id="it_type" onchange="onItemTypeChange()"></select>
+        </div>
+        <div class="col-span-2" id="itSubTypeRow">
+          <label class="form-label">子類型 (室內機 / 室外機)</label>
+          <select id="it_subType"><option>室內機</option><option>室外機</option></select>
+        </div>
+        <div><label class="form-label">廠牌</label><input id="it_brand" type="text" placeholder="廠牌/供應商(選填)"></div>
+        <div><label class="form-label">型號 / 名稱 *</label><input id="it_model" type="text" placeholder="項目型號或名稱"></div>
+        <div><label class="form-label" id="it_specLabel">規格</label><input id="it_spec" type="text" placeholder="選填"></div>
+        <div><label class="form-label">安裝日期</label><input id="it_installDate" type="date"></div>
+        <div><label class="form-label">狀態</label>
+          <select id="it_status"><option>正常</option><option>維修中</option><option>待更換</option><option>停用</option></select>
+        </div>
+        <div><label class="form-label">最後保養/更換日期</label><input id="it_lastService" type="date"></div>
+        <div class="col-span-2"><label class="form-label">備註</label><textarea id="it_note" rows="2"></textarea></div>
       </div>
-      <div class="col-span-2"><label class="form-label">項目類型 *</label>
-        <select id="it_type" onchange="onItemTypeChange()"></select>
-      </div>
-      <div class="col-span-2" id="itSubTypeRow">
-        <label class="form-label">子類型 (室內機 / 室外機)</label>
-        <select id="it_subType"><option>室內機</option><option>室外機</option></select>
-      </div>
-      <div><label class="form-label">廠牌</label><input id="it_brand" type="text" placeholder="廠牌/供應商(選填)"></div>
-      <div><label class="form-label">型號 / 名稱 *</label><input id="it_model" type="text" placeholder="項目型號或名稱"></div>
-      <div><label class="form-label" id="it_specLabel">規格</label><input id="it_spec" type="text" placeholder="選填"></div>
-      <div><label class="form-label">安裝日期</label><input id="it_installDate" type="date"></div>
-      <div><label class="form-label">狀態</label>
-        <select id="it_status"><option>正常</option><option>維修中</option><option>待更換</option><option>停用</option></select>
-      </div>
-      <div><label class="form-label">最後保養/更換日期</label><input id="it_lastService" type="date"></div>
-      <div class="col-span-2"><label class="form-label">備註</label><textarea id="it_note" rows="2"></textarea></div>
     </div>
-    <div class="flex gap-3 mt-4 justify-end">
+    <div class="flex gap-3 justify-end px-6 py-4 border-t border-slate-700 shrink-0">
       <button class="btn-sm" onclick="closeModal('itemModal')">取消</button>
       <button class="btn-primary" onclick="saveItem()">儲存</button>
     </div>
   </div>
 </div>
 
+<!-- Batch Item Modal -->
+<div id="batchItemModal" class="modal-bg">
+  <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-lg mx-4 flex flex-col" style="max-height:90vh;display:flex;flex-direction:column;">
+    <div class="p-6 overflow-y-auto" style="overflow-y:auto;">
+      <div class="text-lg font-bold text-white mb-1">新增項目 (套用全部房間)</div>
+      <div class="text-sm text-slate-400 mb-4">只需填寫一次,系統會自動在<span id="biRoomCount" class="text-slate-200 font-semibold"></span>個房間各建立一筆相同的項目紀錄。</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2"><label class="form-label">項目類型 *</label>
+          <select id="bi_type" onchange="onBatchItemTypeChange()"></select>
+        </div>
+        <div class="col-span-2" id="biSubTypeRow">
+          <label class="form-label">子類型 (室內機 / 室外機)</label>
+          <select id="bi_subType"><option>室內機</option><option>室外機</option></select>
+        </div>
+        <div><label class="form-label">廠牌</label><input id="bi_brand" type="text" placeholder="廠牌/供應商(選填)"></div>
+        <div><label class="form-label">型號/名稱 *</label><input id="bi_model" type="text"></div>
+        <div><label class="form-label" id="bi_specLabel">規格</label><input id="bi_spec" type="text"></div>
+        <div><label class="form-label">安裝日期</label><input id="bi_installDate" type="date"></div>
+        <div><label class="form-label">狀態</label>
+          <select id="bi_status"><option>正常</option><option>維修中</option><option>待更換</option><option>停用</option></select>
+        </div>
+        <div><label class="form-label">上次保養日期</label><input id="bi_lastService" type="date"></div>
+        <div class="col-span-2"><label class="form-label">備註</label><textarea id="bi_note" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="flex gap-3 justify-end px-6 py-4 border-t border-slate-700 shrink-0">
+      <button class="btn-sm" onclick="closeModal('batchItemModal')">取消</button>
+      <button class="btn-primary" onclick="saveBatchItem()">新增到全部房間</button>
+    </div>
+  </div>
+</div>
+
 <!-- Part Modal -->
 <div id="partModal" class="modal-bg">
-  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
-    <div class="text-lg font-bold text-white mb-4" id="partModalTitle">新增零件</div>
-    <div class="grid grid-cols-2 gap-3">
-      <div><label class="form-label">名稱 *</label><input id="pt_name" type="text"></div>
-      <div><label class="form-label">類別</label><input id="pt_category" type="text" placeholder="衛浴類"></div>
-      <div><label class="form-label">規格</label><input id="pt_spec" type="text"></div>
-      <div><label class="form-label">單位</label><input id="pt_unit" type="text" placeholder="個"></div>
-      <div><label class="form-label">庫存數量</label><input id="pt_stock" type="number" min="0" value="0"></div>
-      <div><label class="form-label">單位成本 (NT$)</label><input id="pt_cost" type="number" min="0" value="0"></div>
-      <div class="col-span-2"><label class="form-label">備註</label><textarea id="pt_note" rows="2"></textarea></div>
+  <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-lg mx-4 flex flex-col" style="max-height:90vh;display:flex;flex-direction:column;">
+    <div class="p-6 overflow-y-auto" style="overflow-y:auto;">
+      <div class="text-lg font-bold text-white mb-4" id="partModalTitle">新增零件</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">名稱 *</label><input id="pt_name" type="text"></div>
+        <div><label class="form-label">類別</label><input id="pt_category" type="text" placeholder="衛浴類"></div>
+        <div><label class="form-label">規格</label><input id="pt_spec" type="text"></div>
+        <div><label class="form-label">單位</label><input id="pt_unit" type="text" placeholder="個"></div>
+        <div><label class="form-label">庫存數量</label><input id="pt_stock" type="number" min="0" value="0"></div>
+        <div><label class="form-label">單位成本 (NT$)</label><input id="pt_cost" type="number" min="0" value="0"></div>
+        <div class="col-span-2"><label class="form-label">備註</label><textarea id="pt_note" rows="2"></textarea></div>
+      </div>
     </div>
-    <div class="flex gap-3 mt-4 justify-end">
+    <div class="flex gap-3 justify-end px-6 py-4 border-t border-slate-700 shrink-0">
       <button class="btn-sm" onclick="closeModal('partModal')">取消</button>
       <button class="btn-primary" onclick="savePart()">儲存</button>
     </div>
@@ -364,18 +405,20 @@
 
 <!-- Tool Modal -->
 <div id="toolModal" class="modal-bg">
-  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
-    <div class="text-lg font-bold text-white mb-4" id="toolModalTitle">新增工具</div>
-    <div class="grid grid-cols-2 gap-3">
-      <div><label class="form-label">名稱 *</label><input id="tl_name" type="text"></div>
-      <div><label class="form-label">類別</label><input id="tl_category" type="text" placeholder="手動工具"></div>
-      <div><label class="form-label">規格</label><input id="tl_spec" type="text"></div>
-      <div><label class="form-label">單位</label><input id="tl_unit" type="text" placeholder="個"></div>
-      <div><label class="form-label">庫存數量</label><input id="tl_stock" type="number" min="0" value="0"></div>
-      <div><label class="form-label">單位成本 (NT$)</label><input id="tl_cost" type="number" min="0" value="0"></div>
-      <div class="col-span-2"><label class="form-label">備註</label><textarea id="tl_note" rows="2"></textarea></div>
+  <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-lg mx-4 flex flex-col" style="max-height:90vh;display:flex;flex-direction:column;">
+    <div class="p-6 overflow-y-auto" style="overflow-y:auto;">
+      <div class="text-lg font-bold text-white mb-4" id="toolModalTitle">新增工具</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">名稱 *</label><input id="tl_name" type="text"></div>
+        <div><label class="form-label">類別</label><input id="tl_category" type="text" placeholder="手動工具"></div>
+        <div><label class="form-label">規格</label><input id="tl_spec" type="text"></div>
+        <div><label class="form-label">單位</label><input id="tl_unit" type="text" placeholder="個"></div>
+        <div><label class="form-label">庫存數量</label><input id="tl_stock" type="number" min="0" value="0"></div>
+        <div><label class="form-label">單位成本 (NT$)</label><input id="tl_cost" type="number" min="0" value="0"></div>
+        <div class="col-span-2"><label class="form-label">備註</label><textarea id="tl_note" rows="2"></textarea></div>
+      </div>
     </div>
-    <div class="flex gap-3 mt-4 justify-end">
+    <div class="flex gap-3 justify-end px-6 py-4 border-t border-slate-700 shrink-0">
       <button class="btn-sm" onclick="closeModal('toolModal')">取消</button>
       <button class="btn-primary" onclick="saveTool()">儲存</button>
     </div>
@@ -384,28 +427,30 @@
 
 <!-- Record Modal -->
 <div id="recordModal" class="modal-bg">
-  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
-    <div class="text-lg font-bold text-white mb-4" id="recordModalTitle">新增更換記錄</div>
-    <div class="grid grid-cols-2 gap-3">
-      <div><label class="form-label">房間 *</label>
-        <select id="rec_roomId" onchange="updateItemOptions()"><option value="">-- 選擇房間 --</option></select>
+  <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-lg mx-4 flex flex-col" style="max-height:90vh;display:flex;flex-direction:column;">
+    <div class="p-6 overflow-y-auto" style="overflow-y:auto;">
+      <div class="text-lg font-bold text-white mb-4" id="recordModalTitle">新增更換記錄</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">房間 *</label>
+          <select id="rec_roomId" onchange="updateItemOptions()"><option value="">-- 選擇房間 --</option></select>
+        </div>
+        <div><label class="form-label">項目 *</label>
+          <select id="rec_itemId"><option value="">-- 選擇項目 --</option></select>
+        </div>
+        <div><label class="form-label">零件 *</label>
+          <select id="rec_partId"><option value="">-- 選擇零件 --</option></select>
+        </div>
+        <div><label class="form-label">數量 *</label><input id="rec_qty" type="number" min="1" value="1"></div>
+        <div><label class="form-label">更換日期 *</label><input id="rec_date" type="date"></div>
+        <div><label class="form-label">技術員</label><input id="rec_tech" type="text" placeholder="張師傅"></div>
+        <div><label class="form-label">成本 (NT$)</label><input id="rec_cost" type="number" min="0" value="0"></div>
+        <div><label class="form-label">更換原因</label>
+          <select id="rec_reason"><option>故障</option><option>定期保養</option><option>預防性</option><option>升級</option></select>
+        </div>
+        <div class="col-span-2"><label class="form-label">備註</label><textarea id="rec_note" rows="2"></textarea></div>
       </div>
-      <div><label class="form-label">項目 *</label>
-        <select id="rec_itemId"><option value="">-- 選擇項目 --</option></select>
-      </div>
-      <div><label class="form-label">零件 *</label>
-        <select id="rec_partId"><option value="">-- 選擇零件 --</option></select>
-      </div>
-      <div><label class="form-label">數量 *</label><input id="rec_qty" type="number" min="1" value="1"></div>
-      <div><label class="form-label">更換日期 *</label><input id="rec_date" type="date"></div>
-      <div><label class="form-label">技術員</label><input id="rec_tech" type="text" placeholder="張師傅"></div>
-      <div><label class="form-label">成本 (NT$)</label><input id="rec_cost" type="number" min="0" value="0"></div>
-      <div><label class="form-label">更換原因</label>
-        <select id="rec_reason"><option>故障</option><option>定期保養</option><option>預防性</option><option>升級</option></select>
-      </div>
-      <div class="col-span-2"><label class="form-label">備註</label><textarea id="rec_note" rows="2"></textarea></div>
     </div>
-    <div class="flex gap-3 mt-4 justify-end">
+    <div class="flex gap-3 justify-end px-6 py-4 border-t border-slate-700 shrink-0">
       <button class="btn-sm" onclick="closeModal('recordModal')">取消</button>
       <button class="btn-primary" onclick="saveRecord()">儲存</button>
     </div>
@@ -1025,7 +1070,10 @@ function deleteCustomCategory(name) {
 let editItemId = null;
 
 function populateItemTypeSelect(selectedValue) {
-  const sel = document.getElementById('it_type');
+  populateItemTypeSelectInto('it_type', selectedValue);
+}
+function populateItemTypeSelectInto(selectId, selectedValue) {
+  const sel = document.getElementById(selectId);
   const prev = selectedValue !== undefined ? selectedValue : sel.value;
   sel.innerHTML = getAllItemTypes().map(t=>`<option value="${t}">${t}</option>`).join('')
     + '<option value="__add__">+ 新增類別...</option>';
@@ -1126,6 +1174,79 @@ function saveItem() {
     toast('項目已新增');
   }
   saveDB(); closeModal('itemModal'); renderRooms();
+}
+
+// ============================================================
+//  BATCH ADD ITEM (apply same item to many rooms at once)
+// ============================================================
+function onBatchItemTypeChange() {
+  const sel = document.getElementById('bi_type');
+  if(sel.value === '__add__') {
+    const name = (prompt('請輸入新的項目類別名稱:')||'').trim();
+    if(name && !getAllItemTypes().includes(name)) {
+      db.customItemTypes = db.customItemTypes || [];
+      db.customItemTypes.push(name);
+      saveDB();
+      logAction('新增項目類別', name);
+      toast('已新增項目類別: '+name);
+      populateItemTypeSelectInto('bi_type', name);
+      populateItemTypeFilter();
+    } else if(name) {
+      toast('此類別已存在','error');
+      populateItemTypeSelectInto('bi_type', name);
+    } else {
+      populateItemTypeSelectInto('bi_type', ITEM_TYPES[0]);
+    }
+  }
+  const type = document.getElementById('bi_type').value;
+  const isAC = type === '冷氣機組';
+  document.getElementById('biSubTypeRow').style.display = isAC ? '' : 'none';
+  const brandInput = document.getElementById('bi_brand');
+  if(isAC) {
+    brandInput.value = AC_BRAND;
+    brandInput.readOnly = true;
+  } else {
+    brandInput.readOnly = false;
+    if(brandInput.value === AC_BRAND) brandInput.value = '';
+  }
+  document.getElementById('bi_specLabel').textContent = isAC ? '冷房能力 (BTU)' : '規格';
+  document.getElementById('bi_spec').placeholder = isAC ? '9000' : '選填';
+}
+
+function openBatchItemModal() {
+  populateItemTypeSelectInto('bi_type');
+  document.getElementById('bi_type').value = '冷氣機組';
+  ['bi_model','bi_spec','bi_installDate','bi_lastService','bi_note'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('bi_subType').value = '室內機';
+  document.getElementById('bi_status').value = '正常';
+  onBatchItemTypeChange();
+  document.getElementById('biRoomCount').textContent = db.rooms.length;
+  openModal('batchItemModal');
+}
+
+function saveBatchItem() {
+  const itemType = document.getElementById('bi_type').value;
+  const model = document.getElementById('bi_model').value.trim();
+  if(!model) { toast('型號/名稱必填','error'); return; }
+  if(!db.rooms.length) { toast('尚無任何房間','error'); return; }
+  const isAC = itemType === '冷氣機組';
+  const base = {
+    itemType,
+    subType: isAC ? document.getElementById('bi_subType').value : '',
+    brand: isAC ? AC_BRAND : document.getElementById('bi_brand').value.trim(),
+    model,
+    spec: document.getElementById('bi_spec').value.trim(),
+    installDate: document.getElementById('bi_installDate').value,
+    status: document.getElementById('bi_status').value,
+    lastService: document.getElementById('bi_lastService').value,
+    note: document.getElementById('bi_note').value.trim()
+  };
+  db.rooms.forEach(room=>{
+    db.items.push({id:'item'+uid(), roomId: room.id, ...base});
+  });
+  logAction('新增項目(全部房間)', `${itemType} ${model} x ${db.rooms.length} 間房間`);
+  saveDB(); closeModal('batchItemModal'); renderRooms();
+  toast(`已新增至全部 ${db.rooms.length} 個房間`);
 }
 function deleteItem(e, id) {
   e.stopPropagation();
