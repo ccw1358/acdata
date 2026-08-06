@@ -103,6 +103,7 @@
     <button class="tab-btn px-4 py-2 rounded-t-lg text-sm font-600 text-slate-300 active" onclick="switchTab('dashboard')">儀表板</button>
     <button class="tab-btn px-4 py-2 rounded-t-lg text-sm font-600 text-slate-300" onclick="switchTab('rooms')">房間 &amp; 項目管理</button>
     <button class="tab-btn px-4 py-2 rounded-t-lg text-sm font-600 text-slate-300" onclick="switchTab('parts')">零件目錄</button>
+    <button class="tab-btn px-4 py-2 rounded-t-lg text-sm font-600 text-slate-300" onclick="switchTab('tools')">工具目錄</button>
     <button class="tab-btn px-4 py-2 rounded-t-lg text-sm font-600 text-slate-300" onclick="switchTab('records')">更換記錄</button>
     <button class="tab-btn px-4 py-2 rounded-t-lg text-sm font-600 text-slate-300" onclick="switchTab('visitor')">使用者</button>
   </div>
@@ -177,6 +178,22 @@
         <th>名稱</th><th>類別</th><th>規格</th><th>單位</th><th>庫存</th><th>單位成本</th><th>備註</th><th>操作</th>
       </tr></thead>
       <tbody id="partsTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== TOOLS ========== -->
+<div id="tab-tools" class="tab-content">
+  <div class="flex items-center gap-3 mb-4">
+    <input type="text" id="toolSearch" placeholder="搜尋工具名稱 / 類別..." class="max-w-xs" oninput="renderTools()">
+    <button class="btn-primary ml-auto" onclick="openToolModal()">+ 新增工具</button>
+  </div>
+  <div class="card">
+    <table class="tbl w-full">
+      <thead><tr>
+        <th>名稱</th><th>類別</th><th>規格</th><th>單位</th><th>庫存</th><th>單位成本</th><th>備註</th><th>操作</th>
+      </tr></thead>
+      <tbody id="toolsTableBody"></tbody>
     </table>
   </div>
 </div>
@@ -343,6 +360,26 @@
   </div>
 </div>
 
+<!-- Tool Modal -->
+<div id="toolModal" class="modal-bg">
+  <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
+    <div class="text-lg font-bold text-white mb-4" id="toolModalTitle">新增工具</div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="form-label">名稱 *</label><input id="tl_name" type="text"></div>
+      <div><label class="form-label">類別</label><input id="tl_category" type="text" placeholder="手動工具"></div>
+      <div><label class="form-label">規格</label><input id="tl_spec" type="text"></div>
+      <div><label class="form-label">單位</label><input id="tl_unit" type="text" placeholder="個"></div>
+      <div><label class="form-label">庫存數量</label><input id="tl_stock" type="number" min="0" value="0"></div>
+      <div><label class="form-label">單位成本 (NT$)</label><input id="tl_cost" type="number" min="0" value="0"></div>
+      <div class="col-span-2"><label class="form-label">備註</label><textarea id="tl_note" rows="2"></textarea></div>
+    </div>
+    <div class="flex gap-3 mt-4 justify-end">
+      <button class="btn-sm" onclick="closeModal('toolModal')">取消</button>
+      <button class="btn-primary" onclick="saveTool()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <!-- Record Modal -->
 <div id="recordModal" class="modal-bg">
   <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
@@ -430,6 +467,7 @@ function switchTab(name) {
   if(name==='dashboard') renderDashboard();
   if(name==='rooms') renderRooms();
   if(name==='parts') renderParts();
+  if(name==='tools') renderTools();
   if(name==='records') renderRecords();
   if(name==='visitor') renderVisitor();
 }
@@ -585,7 +623,7 @@ function saveDB() {
   localStorage.setItem(DB_KEY, JSON.stringify(db));
 }
 
-let db = { rooms:[], items:[], parts:[], records:[], customItemTypes:[] };
+let db = { rooms:[], items:[], parts:[], records:[], customItemTypes:[], tools:[] };
 
 // ============================================================
 //  SAMPLE DATA
@@ -701,7 +739,7 @@ function initSampleData() {
     part.stock = Math.max(0, part.stock - qty);
   }
 
-  db = { rooms, items, parts, records };
+  db = { rooms, items, parts, records, customItemTypes:[], tools:[] };
   saveDB();
   logAction('系統初始化','載入範例資料');
 }
@@ -1176,6 +1214,84 @@ function deletePart(id) {
 }
 
 // ============================================================
+//  RENDER TOOLS
+// ============================================================
+function renderTools() {
+  const search = (document.getElementById('toolSearch').value||'').toLowerCase();
+  const tools = db.tools.filter(t=>
+    !search || t.name.toLowerCase().includes(search) || (t.category||'').toLowerCase().includes(search)
+  );
+  document.getElementById('toolsTableBody').innerHTML = tools.map(t=>`<tr>
+    <td class="font-semibold text-white">${esc(t.name)}</td>
+    <td>${esc(t.category||'-')}</td>
+    <td class="text-slate-400">${esc(t.spec||'-')}</td>
+    <td>${esc(t.unit||'個')}</td>
+    <td><span class="badge ${t.stock===0?'badge-red':t.stock<10?'badge-yellow':'badge-green'}">${t.stock}</span></td>
+    <td>NT$${(t.cost||0).toLocaleString()}</td>
+    <td class="text-slate-400 max-w-xs truncate">${esc(t.note||'-')}</td>
+    <td class="flex gap-1">
+      <button class="btn-sm" onclick="openToolModal('${t.id}')">編輯</button>
+      <button class="btn-sm" style="color:#f87171" onclick="deleteTool('${t.id}')">刪除</button>
+    </td>
+  </tr>`).join('');
+}
+
+let editToolId = null;
+function openToolModal(id) {
+  editToolId = id || null;
+  if(id) {
+    const t = db.tools.find(x=>x.id===id);
+    document.getElementById('tl_name').value = t.name||'';
+    document.getElementById('tl_category').value = t.category||'';
+    document.getElementById('tl_spec').value = t.spec||'';
+    document.getElementById('tl_unit').value = t.unit||'個';
+    document.getElementById('tl_stock').value = t.stock||0;
+    document.getElementById('tl_cost').value = t.cost||0;
+    document.getElementById('tl_note').value = t.note||'';
+    document.getElementById('toolModalTitle').textContent = '編輯工具';
+  } else {
+    ['tl_name','tl_category','tl_spec','tl_note'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('tl_unit').value='個';
+    document.getElementById('tl_stock').value=0;
+    document.getElementById('tl_cost').value=0;
+    document.getElementById('toolModalTitle').textContent = '新增工具';
+  }
+  openModal('toolModal');
+}
+function saveTool() {
+  const name = document.getElementById('tl_name').value.trim();
+  if(!name) { toast('名稱必填','error'); return; }
+  const data = {
+    name,
+    category: document.getElementById('tl_category').value.trim(),
+    spec: document.getElementById('tl_spec').value.trim(),
+    unit: document.getElementById('tl_unit').value.trim()||'個',
+    stock: Number(document.getElementById('tl_stock').value)||0,
+    cost: Number(document.getElementById('tl_cost').value)||0,
+    note: document.getElementById('tl_note').value.trim()
+  };
+  if(editToolId) {
+    const idx = db.tools.findIndex(x=>x.id===editToolId);
+    db.tools[idx] = {...db.tools[idx], ...data};
+    logAction('編輯工具', name);
+    toast('工具已更新');
+  } else {
+    db.tools.push({id:'tl'+uid(), ...data});
+    logAction('新增工具', name);
+    toast('工具已新增');
+  }
+  saveDB(); closeModal('toolModal'); renderTools();
+}
+function deleteTool(id) {
+  const t = db.tools.find(x=>x.id===id);
+  confirm2('確認刪除', `刪除工具「${t.name}」?`, ()=>{
+    db.tools = db.tools.filter(x=>x.id!==id);
+    logAction('刪除工具', t.name);
+    saveDB(); renderTools(); toast('工具已刪除');
+  });
+}
+
+// ============================================================
 //  RENDER RECORDS
 // ============================================================
 function populateRecordFilters() {
@@ -1433,6 +1549,7 @@ function importData(e) {
       if(!data.rooms||!data.parts) throw new Error('格式錯誤');
       if(!data.items) data.items = data.acUnits || []; // 相容舊版備份欄位名稱
       if(!data.customItemTypes) data.customItemTypes = []; // 相容舊版備份欄位名稱
+      if(!data.tools) data.tools = []; // 相容舊版備份欄位名稱
       db = data;
       saveDB();
       logAction('匯入', `JSON 備份 (${file.name})`);
@@ -1490,6 +1607,7 @@ function exportCSV() {
     db = saved;
     if(!db.items) db.items = saved.acUnits || []; // 相容舊版資料欄位名稱
     if(!db.customItemTypes) db.customItemTypes = []; // 相容舊版資料欄位名稱
+    if(!db.tools) db.tools = []; // 相容舊版資料欄位名稱
   } else {
     initSampleData();
   }
