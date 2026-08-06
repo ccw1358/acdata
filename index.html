@@ -314,8 +314,10 @@
 <div id="itemModal" class="modal-bg">
   <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg mx-4 max-h-screen overflow-y-auto">
     <div class="text-lg font-bold text-white mb-4" id="itemModalTitle">新增項目</div>
-    <input type="hidden" id="it_roomId">
     <div class="grid grid-cols-2 gap-3">
+      <div class="col-span-2"><label class="form-label">所屬房間 *</label>
+        <select id="it_roomId"></select>
+      </div>
       <div class="col-span-2"><label class="form-label">項目類型 *</label>
         <select id="it_type" onchange="onItemTypeChange()"></select>
       </div>
@@ -1068,9 +1070,11 @@ function openItemModal(e, roomId, itemId) {
   e.stopPropagation();
   populateItemTypeSelect();
   editItemId = itemId || null;
-  document.getElementById('it_roomId').value = roomId;
+  const roomSel = document.getElementById('it_roomId');
+  roomSel.innerHTML = db.rooms.map(r=>`<option value="${r.id}">${r.number} ${r.name||''}</option>`).join('');
   if(itemId) {
     const a = db.items.find(x=>x.id===itemId);
+    roomSel.value = a.roomId||roomId;
     document.getElementById('it_type').value = a.itemType||'冷氣機組';
     onItemTypeChange();
     document.getElementById('it_subType').value = a.subType||'室內機';
@@ -1084,6 +1088,7 @@ function openItemModal(e, roomId, itemId) {
     document.getElementById('itemModalTitle').textContent = '編輯項目';
   } else {
     ['it_model','it_spec','it_installDate','it_lastService','it_note'].forEach(i=>document.getElementById(i).value='');
+    roomSel.value = roomId||'';
     document.getElementById('it_type').value = '冷氣機組';
     document.getElementById('it_subType').value = '室內機';
     document.getElementById('it_status').value = '正常';
