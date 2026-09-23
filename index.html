@@ -56,6 +56,10 @@
   .confirm-dialog.open { display:flex; }
   .mono { font-family: 'Courier New', monospace; }
   .online-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#22c55e; animation:pulse2 1.5s infinite; }
+  .sync-dot { display:inline-block; width:8px; height:8px; border-radius:50%; }
+  .sync-dot.ok { background:#22c55e; }
+  .sync-dot.bad { background:#ef4444; }
+  .sync-dot.busy { background:#f59e0b; animation:pulse2 1s infinite; }
   @keyframes pulse2 { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
   .fingerprint-display { font-family:'Courier New',monospace; font-size:1rem; letter-spacing:0.15em; color:#60a5fa; background:#0f172a; border:1px solid #1e3a5f; border-radius:0.5rem; padding:0.75rem 1rem; word-break:break-all; }
   .tab-content { display:none; }
@@ -91,6 +95,9 @@
       <span class="text-xs text-slate-500 hidden sm:block">Repair Management Database v1.0</span>
     </div>
     <div class="flex items-center gap-3">
+      <span class="sync-dot" id="syncDot" title="雲端同步狀態"></span>
+      <span class="text-xs text-slate-400" id="syncStatus">-</span>
+      <button class="btn-sm" onclick="manualSync()">🔄 同步</button>
       <span class="online-dot"></span>
       <span class="text-xs text-slate-400" id="headerVisitorId">-</span>
       <button class="btn-sm" onclick="exportData()">備份 JSON</button>
@@ -459,6 +466,14 @@
 
 <script>
 // ============================================================
+//  雲端同步設定 (Google Apps Script)
+//  請將下面兩個值換成你自己部署後拿到的網址與 token
+//  (跟 apps-script-backend.gs 裡的 TOKEN 要一模一樣)
+// ============================================================
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+const API_TOKEN = 'CHANGE_THIS_TO_A_LONG_RANDOM_STRING';
+
+// ============================================================
 //  CONSTANTS
 // ============================================================
 const ITEM_TYPES = ['冷氣機組','桌燈','衣櫃滑軌','遙控器','T8燈管','按壓式落水頭','馬桶蓋','馬桶止水皮','水箱進水器','蓮蓬頭','其他'];
@@ -659,15 +674,81 @@ function logAction(action, detail) {
 }
 
 // ============================================================
-//  DATA STORE
+//  DATA STORE (雲端 Google Sheet,localStorage 僅作離線備援快取)
 // ============================================================
 const DB_KEY = 'repair_mgmt_db';
+const DB_CACHE_KEY = 'repair_mgmt_db_cache';
 
-function loadDB() {
-  try { return JSON.parse(localStorage.getItem(DB_KEY)||'null'); } catch(e) { return null; }
+function setSyncStatus(state, text) {
+  const dot = document.getElementById('syncDot');
+  const label = document.getElementById('syncStatus');
+  if(!dot||!label) return;
+  dot.className = 'sync-dot ' + state;
+  label.textContent = text;
 }
-function saveDB() {
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
+
+function isApiConfigured() {
+  return API_URL && !API_URL.includes('PASTE_YOUR_') && API_TOKEN && !API_TOKEN.includes('CHANGE_THIS');
+}
+
+// 從雲端讀取資料;失敗時退回本機快取,確保離線也能開啟網站
+async function loadDB() {
+  if(!isApiConfigured()) {
+    setSyncStatus('bad', '尚未設定雲端 (使用本機資料)');
+    try { return JSON.parse(localStorage.getItem(DB_KEY)||'null'); } catch(e) { return null; }
+  }
+  setSyncStatus('busy', '讀取雲端中...');
+  try {
+    const res = await fetch(`${API_URL}?token=${encodeURIComponent(API_TOKEN)}`);
+    const json = await res.json();
+    if(json.error) throw new Error(json.error);
+    if(json.data) {
+      localStorage.setItem(DB_CACHE_KEY, JSON.stringify(json.data));
+      setSyncStatus('ok', '雲端同步 (最後更新 ' + fmtDt(json.updatedAt) + ')');
+      return json.data;
+    }
+    setSyncStatus('ok', '雲端已連線 (尚無資料)');
+    return null;
+  } catch(err) {
+    setSyncStatus('bad', '雲端讀取失敗,改用本機快取');
+    try { return JSON.parse(localStorage.getItem(DB_CACHE_KEY)||'null'); } catch(e) { return null; }
+  }
+}
+
+// 寫入雲端 (同時寫一份本機快取,離線時仍可繼續操作)
+async function saveDB() {
+  localStorage.setItem(DB_CACHE_KEY, JSON.stringify(db));
+  if(!isApiConfigured()) {
+    localStorage.setItem(DB_KEY, JSON.stringify(db)); // 沒設定雲端時退回純本機模式
+    setSyncStatus('bad', '尚未設定雲端 (僅存本機)');
+    return;
+  }
+  setSyncStatus('busy', '同步中...');
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 避免觸發 CORS 預檢
+      body: JSON.stringify({ token: API_TOKEN, data: db })
+    });
+    const json = await res.json();
+    if(json.error) throw new Error(json.error);
+    setSyncStatus('ok', '已同步至雲端');
+  } catch(err) {
+    setSyncStatus('bad', '雲端寫入失敗 (已存本機,稍後可按同步重試)');
+  }
+}
+
+// 手動同步按鈕:重新從雲端抓取最新資料並重繪目前分頁
+async function manualSync() {
+  const fresh = await loadDB();
+  if(fresh && fresh.rooms) {
+    db = fresh;
+    if(!db.items) db.items = fresh.acUnits || [];
+    if(!db.customItemTypes) db.customItemTypes = [];
+    if(!db.tools) db.tools = [];
+    renderDashboard(); renderRooms(); renderParts(); renderTools(); renderRecords();
+    toast('已從雲端更新資料');
+  }
 }
 
 let db = { rooms:[], items:[], parts:[], records:[], customItemTypes:[], tools:[] };
@@ -1722,13 +1803,13 @@ function exportCSV() {
 // ============================================================
 //  INIT
 // ============================================================
-(function init() {
+(async function init() {
   // Init visitor first
   const v = initVisitor();
   document.getElementById('headerVisitorId').textContent = v.shortId;
 
-  // Load or init DB
-  const saved = loadDB();
+  // Load DB from cloud (falls back to local cache if offline / not configured)
+  const saved = await loadDB();
   if(saved && saved.rooms && saved.rooms.length) {
     db = saved;
     if(!db.items) db.items = saved.acUnits || []; // 相容舊版資料欄位名稱
