@@ -710,6 +710,7 @@ async function loadDB() {
     setSyncStatus('ok', '雲端已連線 (尚無資料)');
     return null;
   } catch(err) {
+    console.error('[雲端讀取失敗]', err);
     setSyncStatus('bad', '雲端讀取失敗,改用本機快取');
     try { return JSON.parse(localStorage.getItem(DB_CACHE_KEY)||'null'); } catch(e) { return null; }
   }
@@ -734,6 +735,7 @@ async function saveDB() {
     if(json.error) throw new Error(json.error);
     setSyncStatus('ok', '已同步至雲端');
   } catch(err) {
+    console.error('[雲端寫入失敗]', err);
     setSyncStatus('bad', '雲端寫入失敗 (已存本機,稍後可按同步重試)');
   }
 }
