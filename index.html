@@ -1552,6 +1552,14 @@ function applyRecord(rec) {
   const partIdx = db.parts.findIndex(x=>x.id===rec.partId);
   if(partIdx>=0) db.parts[partIdx].stock = Math.max(0, db.parts[partIdx].stock - (rec.qty||0));
 }
+// 讓「房間 & 項目管理」內項目的「最後保養/更換」日期與「更換記錄」保持同步
+function syncItemFromRecords(itemId) {
+  if(!itemId) return;
+  const idx = db.items.findIndex(x=>x.id===itemId);
+  if(idx<0) return;
+  const dates = db.records.filter(r=>r.itemId===itemId).map(r=>r.date).filter(Boolean).sort();
+  if(dates.length) db.items[idx].lastService = dates[dates.length-1];
+}
 
 let editRecordId = null;
 function openRecordModal(id) {
@@ -1612,6 +1620,7 @@ function saveRecord() {
   };
   const part = db.parts.find(x=>x.id===partId);
   const room = db.rooms.find(x=>x.id===roomId);
+  const prevItemId = editRecordId ? (db.records.find(x=>x.id===editRecordId)||{}).itemId : null;
 
   if(editRecordId) {
     const idx = db.records.findIndex(x=>x.id===editRecordId);
@@ -1627,7 +1636,9 @@ function saveRecord() {
     logAction('新增更換記錄', `${part?part.name:partId} x${qty} 房間${room?room.number:'-'}`);
     toast('記錄已新增');
   }
-  saveDB(); closeModal('recordModal'); renderRecords();
+  syncItemFromRecords(itemId);
+  if(prevItemId && prevItemId!==itemId) syncItemFromRecords(prevItemId);
+  saveDB(); closeModal('recordModal'); renderRecords(); renderRooms();
 }
 function deleteRecord(id) {
   const rec = db.records.find(x=>x.id===id);
@@ -1635,8 +1646,9 @@ function deleteRecord(id) {
   confirm2('確認刪除', `刪除此更換記錄並回滾庫存?`, ()=>{
     rollbackRecord(rec);
     db.records = db.records.filter(x=>x.id!==id);
+    syncItemFromRecords(rec.itemId);
     logAction('刪除更換記錄', `${part?part.name:rec.partId} x${rec.qty}`);
-    saveDB(); renderRecords(); toast('記錄已刪除');
+    saveDB(); renderRecords(); renderRooms(); toast('記錄已刪除');
   });
 }
 
@@ -1815,6 +1827,11 @@ function exportCSV() {
     if(!db.items) db.items = saved.acUnits || []; // 相容舊版資料欄位名稱
     if(!db.customItemTypes) db.customItemTypes = []; // 相容舊版資料欄位名稱
     if(!db.tools) db.tools = []; // 相容舊版資料欄位名稱
+    // 修正舊資料:確保每個項目的「最後保養/更換」日期與其更換記錄同步
+    if(db.records && db.records.length) {
+      const touchedItemIds = new Set(db.records.map(r=>r.itemId));
+      touchedItemIds.forEach(id=>syncItemFromRecords(id));
+    }
   } else {
     initSampleData();
   }
