@@ -956,6 +956,14 @@ function renderDashboard() {
 // ============================================================
 let expandedRooms = new Set();
 
+// 從更換記錄同步備註: 取該項目所有更換記錄中,日期最新一筆的備註
+function getItemNoteFromRecords(itemId) {
+  const recs = db.records.filter(r=>r.itemId===itemId && r.note);
+  if(!recs.length) return '-';
+  recs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  return recs[0].note;
+}
+
 function populateItemTypeFilter() {
   const sel = document.getElementById('itemTypeFilter');
   const cur = sel.value;
@@ -1001,12 +1009,13 @@ function renderRooms() {
           <button class="btn-sm" onclick="openItemModal(event,'${room.id}')">+ 新增項目</button>
         </div>
         <table class="tbl w-full">
-          <thead><tr><th>類型</th><th>子類型</th><th>廠牌</th><th>型號/名稱</th><th>規格</th><th>狀態</th><th>安裝日期</th><th>最後保養/更換</th><th>操作</th></tr></thead>
+          <thead><tr><th>類型</th><th>子類型</th><th>廠牌</th><th>型號/名稱</th><th>規格</th><th>狀態</th><th>安裝日期</th><th>最後保養/更換</th><th>備註</th><th>操作</th></tr></thead>
           <tbody>${its.map(a=>`<tr>
             <td>${esc(a.itemType)}</td><td>${esc(a.subType||'-')}</td><td>${esc(a.brand||'-')}</td><td>${esc(a.model||'-')}</td>
             <td>${esc(a.spec||'-')}</td>
             <td><span class="badge ${a.status==='正常'?'badge-green':a.status==='維修中'?'badge-yellow':a.status==='待更換'?'badge-blue':'badge-gray'}">${a.status}</span></td>
             <td>${a.installDate||'-'}</td><td>${a.lastService||'-'}</td>
+            <td class="text-slate-400 max-w-xs truncate">${esc(getItemNoteFromRecords(a.id))}</td>
             <td class="flex gap-1">
               <button class="btn-sm" onclick="openItemModal(event,'${room.id}','${a.id}')">編輯</button>
               <button class="btn-sm" style="color:#f87171" onclick="deleteItem(event,'${a.id}')">刪除</button>
